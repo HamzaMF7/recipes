@@ -9,6 +9,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { Icon } from "@/components/ui/icon";
 
 const explore = [
   {
@@ -101,19 +102,21 @@ export default function Home() {
       </div>
 
       {/* Featured recipes */}
-
-      <div className=" w-screen border-1 rounded-5xl border-(--dark)/20 p-4">
+      <div className=" border-1 overflow-x-hidden rounded-5xl border-(--dark)/20 p-4   mb-10">
         <h3 className="uppercase mb-9 ps-6">featured recipes</h3>
-        <Carousel className="w-screen">
-          <CarouselContent className="-ml-1">
+
+        <Carousel className="w-full hidden md:block md:max-w-full">
+          <CarouselContent className=" ">
             {Array.from({ length: 5 }).map((_, index) => (
-              <CarouselItem key={index} className="pl-1  lg:basis-1/2">
-                <div className="p-1">
+              <CarouselItem
+                key={index}
+                className="pl-3  basis-full lg:basis-1/2"
+              >
+                <div className="">
                   <RecipeCard
                     image="/images/home/recipeImage1.svg"
                     title="Savory Herb-Infused Chicken"
                     description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
-                    className="mb-3 w-screen"
                     diet={[
                       "dairy-free",
                       "gluten free",
@@ -127,11 +130,35 @@ export default function Home() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
+          <CarouselPrevious variant={null} />
+          <CarouselNext variant={null} />
         </Carousel>
+
+        {/* Mobile: Scroll horizontal natif */}
+        <div className="md:hidden w-full">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-2 px-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="flex-none max-w-xs sm:w-[320px]">
+                <RecipeCard
+                  image="/images/home/recipeImage1.svg"
+                  title="Savory Herb-Infused Chicken"
+                  description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
+                  diet={[
+                    "dairy-free",
+                    "gluten free",
+                    "egg free",
+                    "grain free",
+                    "no bake",
+                    "high-protein",
+                  ]}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
+      <Icon name="ArrowRight" size={50} aria-label="Temps de préparation" />
       {/* 
       <div className="flex gap-5">
 
@@ -144,9 +171,6 @@ export default function Home() {
         diet={["dairy-free", "gluten free", "egg free", "grain free", "no bake", "high-protein"]}
       />
       </div> */}
-
-
-      
     </div>
 
     // Hero section

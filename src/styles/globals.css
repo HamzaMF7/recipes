@@ -168,6 +168,10 @@ body {
   margin-inline: var(--layout-margin);
 }
 
+.width-screen {
+  width: calc(100vw - var(--layout-margin));
+}
+
 .hero {
   background-image: url("/public/images/home/Hero.svg");
   background-size: cover; /* or contain, 100% */
