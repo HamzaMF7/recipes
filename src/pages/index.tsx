@@ -37,6 +37,7 @@ const explore = [
 export default function Home() {
   return (
     <div className="mx-layout grid gap-5">
+      {/* Hero section  */}
       <div className="hero relative">
         {/* Image Container with Overlay */}
         <div className="relative h-[600px] w-full lg:h-full overflow-hidden rounded-5xl">
@@ -68,6 +69,7 @@ export default function Home() {
           </Button>
         </div>
       </div>
+
       {/* Explore section  */}
       <div className="rounded-5xl bg-(--primary4) py-10 px-6 lg:flex lg:justify-between lg:items-end lg:gap-3">
         <div className="lg:flex-1">
@@ -130,7 +132,7 @@ export default function Home() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious variant={null} />
+          <CarouselPrevious variant={null} className="w-40" />
           <CarouselNext variant={null} />
         </Carousel>
 
@@ -158,19 +160,133 @@ export default function Home() {
         </div>
       </div>
 
-      <Icon name="ArrowRight" size={50} aria-label="Temps de préparation" />
-      {/* 
-      <div className="flex gap-5">
+      {/* Explore recipes  */}
+      <div>
+        <div className="text-center">
+          <Button
+            variant="tag"
+            className="uppercase mb-3 text-base font-medium"
+          >
+            recipes
+          </Button>
+          <h3 className="pb-4 leading-none">
+            Embark on a
+            <br />
+            journey
+          </h3>
+          <p className="text-sm mx-auto text-(--dark)/80 font-light max-w-2xs mb-10 lg:tracking-wide lg:max-w-lg ">
+            With our diverse collection of recipes we have something to satisfy
+            every palate.
+          </p>
+          <Button variant="outline">VIEW ALL RECIPES</Button>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 my-10">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <RecipeCard
+              image="/images/home/recipeImage1.svg"
+              title="Savory Herb-Infused Chicken"
+              description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
+              diet={[
+                "dairy-free",
+                "gluten free",
+                "egg free",
+                "grain free",
+                "no bake",
+                "high-protein",
+              ]}
+            />
+          ))}
+        </div>
+        <div className="text-center">
+          <Button variant="outline">VIEW ALL RECIPES</Button>
+        </div>
+      </div>
 
+      {/* About us  */}
+      <div className=" lg:flex lg:gap-3 p-2 lg:p-4 border-1 border-(--dark)/20 rounded-5xl">
+        <div className="flex-1">
+          <div className="flex h-[45%] flex-col lg:flex-row lg:justify-between lg:items-end">
+            <div className="pt-8 px-2 lg:pt-0">
+              <Button
+                variant="tag"
+                className="uppercase mb-3 text-base font-medium"
+              >
+                about us
+              </Button>
+              <h3 className="pb-4 leading-none">
+                Our Culinary
+                <br />
+                Chronicle
+              </h3>
+              <p className="text-sm  text-(--dark)/80 font-light max-w-2xs mb-5 lg:mb-10 lg:tracking-wide lg:max-w-lg ">
+                Our journey is crafted with dedication, creativity, and an
+                unrelenting commitment to delivering delightful culinary
+                experiences. Join us in savoring the essence of every dish and
+                the stories that unfold.
+              </p>
+              <Button variant="outline" className="hidden lg:block">
+                READ MORE
+              </Button>
+            </div>
 
-      <RecipeCard
-        image="/images/home/recipeImage1.svg"
-        title="Savory Herb-Infused Chicken"
-        description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
-        className="mb-5"
-        diet={["dairy-free", "gluten free", "egg free", "grain free", "no bake", "high-protein"]}
-      />
-      </div> */}
+            <div className="h-[100%]">
+              <img
+                src="/images/about1.svg"
+                alt="about2"
+                className="w-full h-full object-cover aspect-square rounded-2xl hidden lg:block"
+              />
+              <img
+                src="/images/aboutm1.svg"
+                alt="about2"
+                className="w-full h-full object-cover aspect-square rounded-2xl lg:hidden"
+              />
+            </div>
+          </div>
+          <div
+            className="mt-2 lg:mt-3 overflow-hidden"
+            style={{ height: "calc(55% - 12px)" }}
+          >
+            <div className="h-full w-full">
+              <img
+                src="/images/about3.svg"
+                alt="about3"
+                className="w-full h-full object-cover rounded-2xl hidden lg:block"
+              />
+              <img
+                src="/images/aboutm2.svg"
+                alt="about2"
+                className="w-full h-full object-cover aspect-square rounded-2xl lg:hidden"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 lg:w-[30%]">
+          <div className="h-full">
+            <img
+              src="/images/about2.svg"
+              alt="about3"
+              className="object-cover w-full h-full rounded-2xl hidden lg:block"
+            />
+            <img
+              src="/images/aboutm3.svg"
+              alt="about3"
+              className="object-cover w-full h-full rounded-2xl lg:hidden"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Subscribe     */}
+      <div className="rounded-5xl bg-(--primary3) py-16 px-4 text-center">
+        <span className="text-lg lg:text-lg text-(--background) font-medium  mx-auto">SUBSCRIBE</span>
+        <h2 className=" my-3 montserrat text-5xl lg:text-7xl text-(--background) uppercase font-black text-center">
+          JOIN the fun Subscribe Now!
+        </h2>
+        <p className=" text-md lg:text-lg text-(--background)/80 text-center font-normal max-w-sm mx-auto">
+          Subscribe to our newsletter for a weekly serving of recipes, cooking
+          tips, and exclusive insights straight to your inbox.
+        </p>
+      </div>
     </div>
 
     // Hero section

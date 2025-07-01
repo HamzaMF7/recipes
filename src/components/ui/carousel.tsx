@@ -172,66 +172,53 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
 function CarouselPrevious({
   className,
   variant = "outline",
-  size = "icon",
+  size = null,
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
 
   return (
-    <Button
+    <button
       data-slot="carousel-previous"
-      size={size}
-      className={cn(
-        "absolute ",
-     
-        "-top-10 right-0" ,
-       
-        className
-      )}
+      className={cn("absolute  rounded-full", "-top-20 -right-4 ", className)}
       disabled={!canScrollPrev}
       onClick={scrollPrev}
       {...props}
     >
       <Icon
         name="ArrowLeft"
-        size={50}
+        size={40}
         aria-label="Temps de préparation"
+        color="#262522"
       />
       <span className="sr-only">Previous slide</span>
-    </Button>
+    </button>
   );
 }
 
 function CarouselNext({
   className,
   variant = "outline",
-  size = "icon",
+  size = null,
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (
-    <Button
-      data-slot="carousel-next"
-      variant={variant}
-      className={cn(
-        "absolute size-8 rounded-full",
-        orientation === "horizontal"
-          ? "-top-10 right-5"
-          : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
-        className
-      )}
-      disabled={!canScrollNext}
-      onClick={scrollNext}
-      {...props}
-    >
-      <Icon
-        name="ArrowRight"
-        size={50}
-        aria-label="Temps de préparation"
-      />
-      <span className="sr-only">Next slide</span>
-    </Button>
+    <>
+      <button
+        data-slot="carousel-next"
+        typeof="button"
+        className={cn("absolute rounded-full", "-top-20 right-0", className)}
+        aria-disabled={!canScrollNext}
+        onClick={scrollNext}
+        {...props}
+      >
+        <Icon name="ArrowRight" size={40} aria-label="Temps de préparation" />
+
+        <span className="sr-only">Next slide</span>
+      </button>
+    </>
   );
 }
 
