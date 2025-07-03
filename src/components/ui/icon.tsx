@@ -16,7 +16,7 @@ export function Icon({
   name, 
   size = 24, 
   className = '', 
-  color = 'currentColor',
+  color ,
   strokeWidth,
   'aria-label': ariaLabel,
   ...props 
@@ -30,15 +30,11 @@ export function Icon({
     let modifiedContent = svg;
     
     // Appliquer la couleur
-    if (color && color !== 'currentColor') {
+    if (color ) {
       modifiedContent = modifiedContent
         .replace(/fill="[^"]*"/g, `fill="${color}"`)
         .replace(/stroke="[^"]*"/g, `stroke="${color}"`);
-    } else if (color === 'currentColor') {
-      modifiedContent = modifiedContent
-        .replace(/fill="[^"]*"/g, 'fill="currentColor"')
-        .replace(/stroke="[^"]*"/g, 'stroke="currentColor"');
-    }
+    } 
     
     // Appliquer la taille
     modifiedContent = modifiedContent

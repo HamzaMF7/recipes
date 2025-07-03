@@ -10,34 +10,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useState, useEffect } from "react";
+import { menu, MenuType } from "@/lib/utils";
+import SocialMedia from "../ui/socialmedia";
 
-interface MenuType {
-  title: string;
-  path: string;
-}
-
-const menu: MenuType[] = [
-  {
-    title: "home",
-    path: "/",
-  },
-  {
-    title: "All Recipes",
-    path: "/recipes",
-  },
-  {
-    title: "vegan",
-    path: "/recipes/vegan",
-  },
-  {
-    title: "gluten-free",
-    path: "/recipes/gluten-free",
-  },
-  {
-    title: "about us",
-    path: "/about",
-  },
-];
 
 export default function Header() {
   const [menuActive, setMenuActive] = useState<boolean>(false);
@@ -149,11 +124,7 @@ export default function Header() {
         </Button>
       </div>
       
-      <div className="social_media mt-8 mb-3 flex justify-center items-center gap-4">
-        <Image src="/images/fb.svg" alt="Facebook" width={24} height={24} className="hover:scale-110 transition-transform cursor-pointer" />
-        <Image src="/images/insta.svg" alt="Instagram" width={24} height={24} className="hover:scale-110 transition-transform cursor-pointer" />
-        <Image src="/images/ytube.svg" alt="YouTube" width={24} height={24} className="hover:scale-110 transition-transform cursor-pointer" />
-      </div>
+      <SocialMedia className="mt-8 mb-3" socialMedia={["fb", "insta", "ytube"]} />
     </div>
   );
 

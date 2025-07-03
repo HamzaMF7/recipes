@@ -10,26 +10,27 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/input";
 
 const explore = [
   {
-    icon: "/images/home/explore/breakfest.svg",
+    icon: "/images/breakfest.svg",
     label: "breakfest",
   },
   {
-    icon: "/images/home/explore/lunch.svg",
+    icon: "/images/lunch.svg",
     label: "lunch",
   },
   {
-    icon: "/images/home/explore/dinner.svg",
+    icon: "/images/dinner.svg",
     label: "dinner",
   },
   {
-    icon: "/images/home/explore/dessert.svg",
+    icon: "/images/dessert.svg",
     label: "dessert",
   },
   {
-    icon: "/images/home/explore/quickbit.svg",
+    icon: "/images/quickbit.svg",
     label: "quick bite!",
   },
 ];
@@ -42,7 +43,7 @@ export default function Home() {
         {/* Image Container with Overlay */}
         <div className="relative h-[600px] w-full lg:h-full overflow-hidden rounded-5xl">
           <img
-            src="/images/home/Hero.svg"
+            src="/images/Hero.svg"
             alt="hero_image"
             className="w-full h-full object-cover
 "
@@ -116,7 +117,7 @@ export default function Home() {
               >
                 <div className="">
                   <RecipeCard
-                    image="/images/home/recipeImage1.svg"
+                    image="/images/recipeImage1.svg"
                     title="Savory Herb-Infused Chicken"
                     description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
                     diet={[
@@ -142,7 +143,7 @@ export default function Home() {
             {Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="flex-none max-w-xs sm:w-[320px]">
                 <RecipeCard
-                  image="/images/home/recipeImage1.svg"
+                  image="/images/recipeImage1.svg"
                   title="Savory Herb-Infused Chicken"
                   description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
                   diet={[
@@ -183,7 +184,7 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 my-10">
           {Array.from({ length: 6 }).map((_, index) => (
             <RecipeCard
-              image="/images/home/recipeImage1.svg"
+              image="/images/recipeImage1.svg"
               title="Savory Herb-Infused Chicken"
               description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
               diet={[
@@ -275,20 +276,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* Subscribe     */}
-      <div className="rounded-5xl bg-(--primary3) py-16 px-4 text-center">
-        <span className="text-lg lg:text-lg text-(--background) font-medium  mx-auto">SUBSCRIBE</span>
-        <h2 className=" my-3 montserrat text-5xl lg:text-7xl text-(--background) uppercase font-black text-center">
-          JOIN the fun Subscribe Now!
-        </h2>
-        <p className=" text-md lg:text-lg text-(--background)/80 text-center font-normal max-w-sm mx-auto">
-          Subscribe to our newsletter for a weekly serving of recipes, cooking
-          tips, and exclusive insights straight to your inbox.
-        </p>
-      </div>
     </div>
-
-    // Hero section
   );
 }

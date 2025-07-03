@@ -20,7 +20,7 @@ export function useSvg(iconName: string): UseSvgReturn {
     
     const loadSvg = async () => {
       try {
-        const response = await fetch(`/images/home/${iconName}.svg`);
+        const response = await fetch(`/images/${iconName}.svg`);
         
         if (!response.ok) {
           throw new Error(`Failed to load icon: ${iconName} (${response.status})`);
