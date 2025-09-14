@@ -2,124 +2,22 @@
 import { z } from 'zod';
 import { ERROR_CODES } from './constants';
 
-
-// Zod schemas for runtime validation
-// const NutritionSchema = z.object({
-//   calcium: z.string().optional(),
-//   calories: z.string().optional(),
-//   carbohydrates: z.string().optional(),
-//   cholesterol: z.string().optional(),
-//   fat: z.string().optional(),
-//   fiber: z.string().optional(),
-//   iron: z.string().optional(),
-//   potassium: z.string().optional(),
-//   protein: z.string().optional(),
-//   saturatedFat: z.string().optional(),
-//   sodium: z.string().optional(),
-//   sugar: z.string().optional(),
-//   vitaminA: z.string().optional(),
-//   vitaminC: z.string().optional(),
-// });
-
-// const IngredientSchema = z.object({
-//   amount: z.string(),
-//   name: z.string().min(1, 'Ingredient name is required'),
-//   notes: z.string().optional(),
-//   unit: z.string().optional(),
-// });
-
-// const InstructionSchema = z.object({
-//   image: z.string().optional(),
-//   instruction: z.string().min(1, 'Instruction text is required'),
-//   video: z.string().optional(),
-// });
-
-// const EquipmentSchema = z.object({
-//   link: z.string().optional(),
-//   name: z.string(),
-// });
-
-// const RecipeDataSchema = z.object({
-//   name: z.string().min(1, 'Recipe name is required'),
-//   author: z.string().optional(),
-//   cookTime: z.string().optional(),
-//   cost: z.string().optional(),
-//   cuisine: z.union([z.string(), z.array(z.string())]).optional(),
-//   datePublished: z.string().optional(),
-//   dietary: z.union([z.string(), z.array(z.string())]).optional(),
-//   difficulty: z.string().optional(),
-//   equipment: z.array(EquipmentSchema).optional().default([]),
-//   ingredients: z.array(IngredientSchema).min(1, 'At least one ingredient is required'),
-//   keywords: z.union([z.string(), z.array(z.string())]).optional(),
-//   method: z.string().optional(),
-//   notes: z.string().optional(),
-//   nutrition: NutritionSchema.optional().default({}),
-//   prepTime: z.string().optional(),
-//   protein: z.string().optional(),
-//   rating: z.number().min(0).max(5).optional(),
-//   servings: z.number().positive().optional(),
-//   servingsUnit: z.string().optional(),
-//   source: z.string().optional(),
-//   summary: z.string().optional(),
-//   tips: z.string().optional(),
-//   totalTime: z.string().optional(),
-//   type: z.union([z.string(), z.array(z.string())]).optional(),
-//   variations: z.string().optional(),
-//   instructions: z.array(InstructionSchema).min(1, 'At least one instruction is required'),
-// });
-
-// const FeaturedImageSchema = z.object({
-//   node: z.object({
-//     altText: z.string().optional(),
-//     title: z.string().optional(),
-//     sourceUrl: z.string().url(),
-//   }),
-// }).optional();
-
-// export const RecipeSchema = z.object({
-//   id: z.string(),
-//   content: z.string().optional(),
-//   recipeData: RecipeDataSchema,
-//   slug: z.string(),
-//   status: z.string(),
-//   uri: z.string(),
-//   title: z.string(),
-//   featuredImage: FeaturedImageSchema,
-// });
-
-// export type Recipe = z.infer<typeof RecipeSchema>;
-// export type RecipeData = z.infer<typeof RecipeDataSchema>;
-// export type Ingredient = z.infer<typeof IngredientSchema>;
-// export type Instruction = z.infer<typeof InstructionSchema>;
-// export type Nutrition = z.infer<typeof NutritionSchema>;
-
-// // Error types
-// export type ErrorCode = keyof typeof ERROR_CODES;
-
-// export interface RecipeServiceError {
-//   code: ErrorCode;
-//   message: string;
-//   originalError?: Error;
-//   timestamp: number;
-// }
-
-
 // Enhanced Zod schemas with better validation
 const NutritionSchema = z.object({
-  calcium: z.number().optional(),
-  calories: z.number().optional(),
-  carbohydrates: z.number().optional(),
-  cholesterol: z.number().optional(),
-  fat: z.number().optional(),
-  fiber: z.number().optional(),
-  iron: z.number().optional(),
-  potassium: z.number().optional(),
-  protein: z.number().optional(),
-  saturatedFat: z.number().optional(),
-  sodium: z.number().optional(),
-  sugar: z.number().optional(),
-  vitaminA: z.number().optional(),
-  vitaminC: z.number().optional(),
+  calcium: z.number().nullable().optional(),
+  calories: z.number().nullable().optional(),
+  carbohydrates: z.number().nullable().optional(),
+  cholesterol: z.number().nullable().optional(),
+  fat: z.number().nullable().optional(),
+  fiber: z.number().nullable().optional(),
+  iron: z.number().nullable().optional(),
+  potassium: z.number().nullable().optional(),
+  protein: z.number().nullable().optional(),
+  saturatedFat: z.number().nullable().optional(),
+  sodium: z.number().nullable().optional(),
+  sugar: z.number().nullable().optional(),
+  vitaminA: z.number().nullable().optional(),
+  vitaminC: z.number().nullable().optional(),
 });
 
 const IngredientSchema = z.object({
@@ -129,18 +27,24 @@ const IngredientSchema = z.object({
   unit: z.string().max(20, 'Unit is too long').optional(),
 });
 
+
+const OptionalUrlNull = z.preprocess(
+  (v) => (v === "" || v == null ? null : v),
+  z.string().url("Invalid URL").nullable() // allow string | null
+);
+
 const InstructionSchema = z.object({
-  image: z.string().url('Invalid image URL').optional(),
-  instruction: z.string().min(1, 'Instruction text is required').max(1000, 'Instruction is too long'),
-    video: z.union([
-    z.string().url('Invalid video URL'),
-    z.literal("") // Allow empty string
-  ]).optional(),
+  image: OptionalUrlNull, // "" -> null, valid URL -> string
+  instruction: z.string().min(1, "Instruction text is required").max(1000),
+  video: z.preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.string().url("Invalid video URL").nullable()
+  ),
 });
 
 const EquipmentSchema = z.object({
-  link: z.string().url('Invalid equipment link').optional(),
-  name: z.string().min(1, 'Equipment name is required').max(100, 'Equipment name is too long'),
+  link: OptionalUrlNull, // "" -> null
+  name: z.string().min(1, "Equipment name is required").max(100),
 });
 
 const RecipeDataSchema = z.object({
@@ -181,11 +85,11 @@ const RecipeDataSchema = z.object({
 
 const FeaturedImageSchema = z.object({
   node: z.object({
-    altText: z.string().max(200, 'Alt text is too long').optional(),
-    title: z.string().max(200, 'Image title is too long').optional(),
-    sourceUrl: z.string().url('Invalid image URL'),
+    altText: z.string().max(200, 'Alt text is too long').optional().nullable(),
+    title: z.string().max(200, 'Image title is too long').optional().nullable(),
+    sourceUrl: z.string().url('Invalid image URL').nullable(),
   }),
-}).optional();
+}).optional().nullable();
 
 export const RecipeSchema = z.object({
   id: z.string().min(1, 'Recipe ID is required'),

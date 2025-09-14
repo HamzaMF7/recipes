@@ -1,145 +1,210 @@
-
-
-
-import { GetServerSideProps } from 'next';
-import { Recipe, RecipeServiceError } from '@/utils/recipe';
-import { fetchRecipe } from '../../lib/graphql';
-import RecipeDetails from '@/components/ui/recipeDetails';
+// pages/recipes/[slug].tsx
+import type { GetServerSideProps, InferGetServerSidePropsType } from 'next';
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
-import { useRecipe } from '@/hooks/useRecipe';
-import { recipeService } from '@/lib/recipe-service';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
+import Script from 'next/script';
 
+import { recipeService } from '@/lib/recipe-service';
+import type { Recipe, RecipeServiceError } from '@/utils/recipe';
 
+import Layout from '@/pages/_layout';
+import RecipeSeo from '@/components/seo/recipeSeo';
+import { AdProvider } from '@/components/ads/adProvider';
+import { AdSlot } from '@/components/ads/adSlot';
+import { SkipLink } from '@/components/ui/skipLink';
 
-interface RecipeState {
+const RecipeDetails = dynamic(() => import('@/components/ui/recipeDetailsModern'), {
+  ssr: true, // keep SSR for SEO
+  loading: () => <div className="mx-auto max-w-3xl p-6" aria-busy="true">Loading recipe…</div>,
+});
+
+type Props = {
   recipe: Recipe | null;
-  loading: boolean;
   error: RecipeServiceError | null;
-}
+  baseUrl: string;
+};
+
+export default function RecipePage({
+  recipe: ssrRecipe,
+  error: ssrError,
+  baseUrl,
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  const router = useRouter();
+  const slug = useMemo(() => {
+    const q = router.query.slug;
+    return Array.isArray(q) ? q[0] : q;
+  }, [router.query.slug]);
+
+  const [recipe, setRecipe] = useState<Recipe | null>(ssrRecipe);
+  const [error, setError] = useState<RecipeServiceError | null>(ssrError);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState<number>(0);
+
+  // Client-side fetch only if navigated without SSR data (e.g., client transitions).
+  const fetchClient = useCallback(
+    async (isRetry = false) => {
+      if (!slug) return;
+      if (recipe && !isRetry) return; // already have data
+
+      setLoading(true);
+      if (isRetry) setRetryCount((c) => c + 1);
+      try {
+        const res = await recipeService.fetchRecipe(slug, {
+          fetchPolicy: isRetry ? 'network-only' : 'cache-first',
+          includeMetadata: true,
+          retries: isRetry ? 1 : undefined,
+        });
+
+        if (res.error) {
+          setError(res.error);
+          setRecipe(null);
+        } else {
+          setRecipe(res.data!);
+          setError(null);
+          setRetryCount(0);
+        }
+      } catch (e) {
+        setError({
+          code: 'UNKNOWN_ERROR',
+          message: 'Unexpected client error while loading the recipe.',
+          timestamp: Date.now(),
+          originalError: e instanceof Error ? e : undefined,
+        });
+        setRecipe(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [slug, recipe]
+  );
+
+  useEffect(() => {
+    if (router.isReady && !ssrRecipe && slug) fetchClient(false);
+  }, [router.isReady, slug]);
 
 
+  const onRetry = () => fetchClient(true);
+  const onGoHome = () => router.push('/recipes');
 
-const RecipePage = () => {
-
-  const {query } = useRouter();
-  const recipeID = query?.slug[0] ;
-  
-  const [state , setState ] = useState<RecipeState>({
-    recipe : null , 
-    loading : false , 
-    error : null ,
-  }) 
-
-
-  const getRecipeData = async () => {
-    setState((prev) : RecipeState =>( {...prev , loading: true } )) ;
-    const {recipe , error} = await recipeService.fetchRecipe(recipeID) ; 
-    if(error) {
-      console.log(error) ; 
-    }
-    else {
-      setState((prev) : RecipeState => ({...prev , recipe: recipe , loading: false }))
-    }
-  }
-
-  useEffect(()=> {
-      getRecipeData();
-  } , [recipeID])
-  
-
-  const recipe = state.recipe ; 
-
-  console.log("recipe" , recipe) ;
-
-  if (!recipe) {
+  // Fallback not-found state (SSR returns notFound: true) – defensive
+  if (!recipe && !loading && (error?.code === 'NOT_FOUND' || router.isFallback)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4" style={{ color: 'var(--dark)' }}>
-            Recipe Not Found
-          </h1>
-          <p className="text-gray-600 text-lg">The recipe you're looking for doesn't exist.</p>
-        </div>
-      </div>
+      <Layout>
+        <SkipLink href="#content" />
+        <main id="content" className="mx-auto max-w-3xl p-6">
+          <h1 className="text-3xl font-semibold mb-2 text-[color:var(--dark)]">Recipe Not Found</h1>
+          <p className="mb-6">The recipe you’re looking for doesn’t exist or was removed.</p>
+          <div className="flex gap-3">
+            <button onClick={onGoHome} className="btn btn-primary" aria-label="Back to recipes">Browse recipes</button>
+            <button onClick={onRetry} className="btn btn-secondary" aria-label="Retry loading recipe">Retry</button>
+          </div>
+        </main>
+      </Layout>
     );
   }
 
+  // Loading state for client navigations
+  if (loading && !recipe) {
+    return (
+        <main id="content" className="mx-auto max-w-3xl p-6" aria-busy="true" aria-live="polite">
+          Loading recipe…
+        </main>
+    );
+  }
+
+  // Generic error state
+  if (!recipe && error) {
+    return (
+        <main id="content" className="mx-auto max-w-3xl p-6" role="alert" aria-live="assertive">
+          <h1 className="text-2xl font-semibold mb-2">We couldn’t load this recipe</h1>
+          <p className="mb-4">{error.message}</p>
+          <div className="flex gap-3">
+            <button onClick={onRetry} className="btn btn-primary">Try again</button>
+            <button onClick={onGoHome} className="btn btn-secondary">Browse recipes</button>
+          </div>
+        </main>
+    );
+  }
+
+  // Happy path
+  const canonical = `${baseUrl}${recipe!.uri ?? `/recipes/${slug}`}`;
+
   return (
-    <>
-           <Head>
-        <title>{recipe.recipeData.name || recipe.title}</title>
-        <meta name="description" content={recipe.recipeData.summary} />
-        <meta property="og:title" content={recipe.recipeData.name || recipe.title} />
-        <meta property="og:description" content={recipe.recipeData.summary} />
-        {recipe.featuredImage?.node?.sourceUrl && (
-          <meta property="og:image" content={recipe.featuredImage.node.sourceUrl} />
-        )}
-        <meta name="keywords" content={recipe.recipeData.keywords?.toString()} />
-        <meta name="author" content={recipe.recipeData.author} />
-        <meta property="article:published_time" content={recipe.recipeData.datePublished} />
-        <link rel="canonical" href={`https://yoursite.com${recipe.uri}`} />
-        
-        {/* Recipe Schema Markup */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Recipe",
-              "name": recipe.recipeData.name || recipe.title,
-              "description": recipe.recipeData.summary,
-              "image": recipe.featuredImage?.node?.sourceUrl,
-              "author": {
-                "@type": "Person",
-                "name": recipe.recipeData.author
-              },
-              "datePublished": recipe.recipeData.datePublished,
-              "prepTime": `PT${recipe.recipeData.prepTime}M`,
-              "cookTime": `PT${recipe.recipeData.cookTime}M`,
-              "totalTime": `PT${recipe.recipeData.totalTime}M`,
-              "recipeYield": recipe.recipeData.servings,
-              "recipeCategory": Array.isArray(recipe.recipeData.type) ? recipe.recipeData.type.join(", ") : recipe.recipeData.type,
-              "recipeCuisine": Array.isArray(recipe.recipeData.cuisine) ? recipe.recipeData.cuisine.join(", ") : recipe.recipeData.cuisine,
-              "aggregateRating": recipe.recipeData.rating ? {
-                "@type": "AggregateRating",
-                "ratingValue": recipe.recipeData.rating,
-                "ratingCount": "1"
-              } : undefined,
-              "nutrition": {
-                "@type": "NutritionInformation",
-                "calories": recipe.recipeData.nutrition.calories,
-                "proteinContent": recipe.recipeData.nutrition.protein,
-                "carbohydrateContent": recipe.recipeData.nutrition.carbohydrates,
-                "fatContent": recipe.recipeData.nutrition.fat
-              },
-              "recipeIngredient": recipe.recipeData.ingredients.map(ing => `${ing.amount} ${ing.unit} ${ing.name}`),
-              "recipeInstructions": recipe.recipeData.instructions.map((instruction, index) => ({
-                "@type": "HowToStep",
-                "name": `Step ${index + 1}`,
-                "text": instruction.instruction,
-                "image": instruction.image || undefined
-              }))
-            })
-          }}
-        />
-      </Head>
-      <RecipeDetails recipe={recipe} />
-    </>
+    <AdProvider>
+        <RecipeSeo recipe={recipe!} canonical={canonical} baseUrl={baseUrl} />
+        <SkipLink href="#content" />
+
+        {/* Top-of-page, high-visibility ad that does not push content below the fold on mobile */}
+        <div className="pt-4">
+          <AdSlot
+            id="recipe_top_banner"
+            ariaLabel="Advertisement"
+            sizes={{ desktop: [[970, 250], [728, 90]], mobile: [[320, 100], [320, 50]] }}
+            viewportRules={{ min: 0 }}
+            lazy
+            className="mb-4"
+          />
+        </div>
+
+        <main id="content" className="pb-16">
+          {/* H1 rendered inside RecipeDetails for a single heading per page */}
+          <RecipeDetails recipe={recipe!} />
+
+          {/* Mid-content ad (between body and related/content modules) */}
+          <AdSlot
+            id="recipe_mid_content"
+            ariaLabel="Advertisement"
+            sizes={{ desktop: [[728, 90], [300, 250]], mobile: [[300, 250], [320, 100]] }}
+            lazy
+            className="my-8"
+          />
+        </main>
+      {/* (Optional) If using Google Publisher Tag load once globally */}
+      <Script
+        id="gpt"
+        strategy="afterInteractive"
+        src="https://securepubads.g.doubleclick.net/tag/js/gpt.js"
+        onLoad={() => (window as any).googletag?.cmd?.push?.(() => {})}
+      />
+    </AdProvider>
   );
+}
+
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const started = Date.now();
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || 'https://example.com';
+  try {
+    const slugParam = ctx.params?.slug;
+    const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
+
+    if (!slug || !recipeService.isValidSlug(slug)) {
+      return { notFound: true };
+    }
+
+    // Fast network fetch on SSR with limited retries for TTFB
+    const result = await recipeService.fetchRecipe(slug, {
+      fetchPolicy: 'network-only',
+      timeout: Math.min(12000, (process.env.SERVER_REQUEST_TIMEOUT && +process.env.SERVER_REQUEST_TIMEOUT) || 20000),
+      retries: 1,
+      includeMetadata: true,
+    });
+
+    // Set CDN cache for 60s, SWR 5m (tune to your freshness needs)
+    ctx.res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+
+    if (result.error) {
+      // Return notFound for semantic missing resources; otherwise render error state on client
+      if (result.error.code === 'NOT_FOUND' || result.error.code === 'VALIDATION_ERROR') {
+        return { notFound: true };
+      }
+      return { props: { recipe: null, error: result.error, baseUrl } };
+    }
+
+    return { props: { recipe: result.data!, error: null, baseUrl } };
+  } catch (e) {
+    console.error('SSR error', e, { ms: Date.now() - started });
+    return { notFound: true };
+  }
 };
-
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { id } = context.params!;
-  const recipe = await fetchRecipe(id as string);
-
-  return {
-    props: {
-      recipe,
-    },
-  };
-};
-export default RecipePage;
-
-

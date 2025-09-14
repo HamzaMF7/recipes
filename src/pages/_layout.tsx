@@ -7,10 +7,11 @@ import { montserrat, roboto } from "@/utils/fonts";
 
 
 export default function Layout({children } : { children : React.ReactNode}) {
+
     return (
         <div className={`${roboto.variable} ${montserrat.variable}`}>
             <Header/>
-            <div className="page_content">
+            <div className="page_content mx-layout py-4 ">
                 {children}
             </div>
             <Footer/>
