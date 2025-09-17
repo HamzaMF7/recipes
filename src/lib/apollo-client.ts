@@ -40,7 +40,7 @@ const retryLink = new RetryLink({
 
 // HTTP link with timeout
 const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_WORDPRESS_GRAPHQL_URL || 'http://localhost/wordpress/graphql',
+  uri: process.env.WORDPRESS_GRAPHQL_URL || 'http://localhost/wordpress/graphql',
   fetchOptions: {
     timeout: CONFIG.REQUEST_TIMEOUT,
   },
@@ -60,24 +60,15 @@ const authLink = setContext((_, { headers }) => {
 });
 
 // Enhanced cache configuration
-const cache = new InMemoryCache({
+export const cache = new InMemoryCache({
   typePolicies: {
-    Recipe: {
-      fields: {
-        recipeData: {
-          merge: true, // Deep merge recipe data
-        },
-      },
-    },
     Query: {
       fields: {
-        recipes: {
-          keyArgs: ['where'],
-          merge(existing = { nodes: [], pageInfo: {} }, incoming) {
-            return {
-              ...incoming,
-              nodes: [...(existing.nodes || []), ...(incoming.nodes || [])],
-            };
+        // If you cached 'filteredRecipes', disable custom merge to keep it simple:
+        filteredRecipes: {
+          keyArgs: ["filters"], // page/perPage are not key args (pagination)
+          merge(existing, incoming) {
+            return incoming; // easiest: always replace
           },
         },
       },

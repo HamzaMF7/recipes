@@ -1,22 +1,33 @@
 import Image from "next/image";
 import { Button } from "./button";
+import Link from "next/link";
 import { Badge } from "./badge";
 
-interface recipesProps {
-  image: string;
+export interface RecipeCardProps {
+  id: string;
   title: string;
-  description: string;
+  description?: string | null;
+  href: string;                     // e.g. node.uri or `/recipes/${slug}`
+  featuredImageUrl?: string | null; // from GraphQL
+  dietary?: string[] | null;
+  totalTime?: number | null;        // minutes
+  difficulty?: string | null;       // "easy" | "medium" | "hard" | ...
+  servings?: number | null;         // optional if you have it on the list node
   className?: string;
-  diet?: string[];
 }
 
 export default function RecipeCard({
-  image,
+  id,
   title,
   description,
+  href,
+  featuredImageUrl,
+  dietary = [],
+  totalTime,
+  difficulty,
+  servings,
   className,
-  diet = [],
-}: recipesProps) {
+}: RecipeCardProps) {
   // function to extract the first words letters
   const extractInitials = (dietTag: string): string => {
     return dietTag
@@ -71,16 +82,33 @@ export default function RecipeCard({
     ];
     return darkColors.includes(bgColor) ? "text-white" : "text-black";
   };
+
+  const fmtTime = (m?: number | null) =>
+    typeof m === "number" && m > 0 ? `${m} min` : null;
+
+  const fmtDifficulty = (d?: string | null) =>
+    d ? d.replace(/^\w/, (c) => c.toUpperCase()) : null;
+
+  const metaBits = [fmtTime(totalTime), fmtDifficulty(difficulty), servings ? `${servings} servings` : null]
+    .filter(Boolean)
+    .join(" · ");
+
+  const imgSrc =
+    featuredImageUrl ||
+    "/images/placeholder-recipe.jpg"; // keep a local placeholder in public/
+
+
   return (
     <div className={`rounded-3xl overflow-hidden bg-(--background) border-1 border-(--dark)/16  ${className}`}>
       {/* Container pour l'image avec aspect ratio fixe */}
       <div className="relative rounded-xl w-full aspect-[5/3] sm:aspect-[3/2] lg:aspect-[8/3]">
         <Image
-          src={image}
+          src={imgSrc}
           fill
           alt={`Image de la recette ${title}`}
           className="object-cover rounded-xl"
           sizes="(max-width: 640px) 90vw, (max-width: 768px) 45vw, (max-width: 1024px) 50vw, 50vw"
+          priority={false}
         />
       </div>
 
@@ -94,19 +122,19 @@ export default function RecipeCard({
           {description}
         </p>
 
-        {/* Tags diet */}
-        {diet.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            {diet.map((tag, index) => {
-              const bgColor = getTagColor(tag);
-              const textColor = getTextColor(bgColor);
-              const initials = extractInitials(tag);
 
+        {/* Diet tags */}
+        {!!dietary?.length && (
+          <div className="flex flex-wrap items-center gap-2">
+            {dietary.map((tag, i) => {
+              const bg = getTagColor(tag);
+              const fg = getTextColor(bg);
+              const initials = extractInitials(tag);
               return (
                 <span
-                  key={index}
-                  className={`rounded-full w-9 h-9 ${bgColor} ${textColor} font-bold text-xs grid place-items-center transition-transform hover:scale-110`}
-                  title={tag.replace(/[-]/g, " ")} // Tooltip avec le nom complet
+                  key={`${tag}-${i}`}
+                  className={`rounded-full w-9 h-9 ${bg} ${fg} font-bold text-xs grid place-items-center transition-transform hover:scale-110`}
+                  title={tag.replace(/-/g, " ")}
                 >
                   {initials}
                 </span>
@@ -116,8 +144,8 @@ export default function RecipeCard({
         )}
 
         <div className=" flex flex-col lg:items-center gap-4 lg:justify-between lg:flex-row  mt-10 lg:mt-13">
-          <span>40 Min - easy prep - 3 serves</span>
-          <Button variant="outline" className="uppercase font-medium">
+          <span className="text-sm text-(--dark)">{metaBits}</span>
+           <Button variant="outline" className="uppercase font-medium">
             view recipe
           </Button>
         </div>
