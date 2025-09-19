@@ -1,6 +1,3 @@
-
-
-
 import { Recipe } from '@/utils/recipe';
 import { gql, TypedDocumentNode } from '@apollo/client';
 
@@ -17,7 +14,7 @@ export interface RecipeCardNode {
   id: string;
   title: string;
   totalTime?: number | null;
-  difficulty?: string | null;      // e.g. "easy" | "medium" | "hard"
+  difficulty?: string | null; // e.g. "easy" | "medium" | "hard"
   dietary?: string[] | null;
   summary?: string | null;
   featuredImageId?: number | null; // GraphQL Int -> TS number
@@ -25,7 +22,7 @@ export interface RecipeCardNode {
 }
 
 export interface FacetBucket<T = string | number> {
-  value: T;     // keep as string | number depending on facet
+  value: T; // keep as string | number depending on facet
   label: string;
   count: number;
 }
@@ -64,12 +61,12 @@ export interface RecipeFilterInput {
   search?: string | null;
   totalTimeLte?: number | null;
   ratingGte?: number | null;
-  difficulty?: string | null;     // "easy" | "medium" | "hard" | etc.
+  difficulty?: string | null; // "easy" | "medium" | "hard" | etc.
   diet?: string[] | null;
   cuisine?: string[] | null;
   method?: string[] | null;
   mealTypes?: string[] | null;
-  season?: string[] | null;
+  season?: string | null;
   // add any other fields you exposed on the server
 }
 
@@ -227,7 +224,7 @@ export const GET_FILTERED_RECIPES = gql`
         }
         ratingRanges {
           value
-          label 
+          label
           count
         }
         difficulty {
@@ -273,6 +270,7 @@ export const GET_RECIPE_FACETS = gql`
       nodes {
         name
         slug
+        count
       }
     }
     dietaries {
@@ -301,3 +299,7 @@ export const GET_RECIPE_FACETS = gql`
     }
   }
 `;
+
+
+
+

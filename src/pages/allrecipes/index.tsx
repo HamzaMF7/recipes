@@ -53,11 +53,21 @@ type FiltersState = {
   method: string[];
   difficulty?: string;
   mealTypes: string[];
-  season: string[];
+  season?: string;              // <-- single-select season
   totalTimePreset?: string;
   ratingRange?: string;
 };
 
+type GraphQLFilters = {
+  totalTimeLte: number | null;
+  ratingGte: number | null;
+  difficulty: string | null;
+  diet: string[] | null;
+  cuisine: string[] | null;
+  method: string[] | null;
+  mealTypes: string[] | null;
+  season: string | null;        // <-- single-select
+};
 
 // ----------------------------- Utility Functions ----------------------------
 
@@ -68,7 +78,7 @@ const DEFAULT_STATE: FiltersState = {
   method: [],
   difficulty: undefined,
   mealTypes: [],
-  season: [],
+  season: undefined,
   totalTimePreset: undefined,
   ratingRange: undefined
 };
@@ -86,7 +96,7 @@ const stateFromQuery = (q: Record<string, any>): FiltersState => ({
   method: parseList(q.method),
   difficulty: (q.difficulty as string) || undefined,
   mealTypes: parseList(q.meal),
-  season: parseList(q.season),
+  season: (q.season as string) || undefined,   // <-- not array
   totalTimePreset: (q.time as string) || undefined,
   ratingRange: (q.rating as string) || undefined
 });
@@ -99,39 +109,33 @@ const queryFromState = (s: FiltersState) => {
   if (s.method.length) entries.push(['method', s.method.join(',')]);
   if (s.difficulty) entries.push(['difficulty', s.difficulty]);
   if (s.mealTypes.length) entries.push(['meal', s.mealTypes.join(',')]);
-  if (s.season.length) entries.push(['season', s.season.join(',')]);
+  if (s.season) entries.push(['season', s.season]);           // <-- fixed (was s.season.length / join)
   if (s.totalTimePreset) entries.push(['time', s.totalTimePreset]);
   if (s.ratingRange) entries.push(['rating', s.ratingRange]);
-  
   return Object.fromEntries(entries);
 };
 
-const buildGraphQLFilters = (filters: FiltersState) => {
-  const gqlFilters: any = {};
-  
-  if (filters.diet.length) gqlFilters.diet_in = filters.diet;
-  if (filters.cuisine.length) gqlFilters.cuisine_in = filters.cuisine;
-  if (filters.method.length) gqlFilters.method_in = filters.method;
-  if (filters.difficulty) gqlFilters.difficulty = filters.difficulty;
-  if (filters.mealTypes.length) gqlFilters.mealTypes_in = filters.mealTypes;
-  if (filters.season.length) gqlFilters.season_in = filters.season;
-  if (filters.totalTimePreset) gqlFilters.totalTime_lte = parseInt(filters.totalTimePreset);
-  if (filters.ratingRange) gqlFilters.rating_gte = parseFloat(filters.ratingRange);
-  
-  return gqlFilters;
-};
+const buildGraphQLFilters = (filters: FiltersState): GraphQLFilters => ({
+  totalTimeLte: filters.totalTimePreset ? parseInt(filters.totalTimePreset, 10) : null,
+  ratingGte: filters.ratingRange ? parseFloat(filters.ratingRange) : null,
+  difficulty: filters.difficulty || null,
+  diet: filters.diet.length ? filters.diet : null,
+  cuisine: filters.cuisine.length ? filters.cuisine : null,
+  method: filters.method.length ? filters.method : null,
+  mealTypes: filters.mealTypes.length ? filters.mealTypes : null,
+  season: filters.season || null,
+});
 
 // ----------------------------- Components -----------------------------------
 
 const FacetedDropdown = ({
-  title,
   options,
   selectedValues,
   onChange,
   placeholder = "Select options...",
   loading = false
 }: {
-  title: string;
+  title: string; // kept for API compatibility, not used in UI
   options: FacetItem[];
   selectedValues: string[];
   onChange: (values: string[]) => void;
@@ -156,14 +160,17 @@ const FacetedDropdown = ({
     return `${selectedValues.length} selected`;
   }, [selectedValues, options, placeholder]);
 
-  const sortedOptions = useMemo(() => 
-    [...options].sort((a, b) => {
-      const aSelected = selectedValues.includes(a.value);
-      const bSelected = selectedValues.includes(b.value);
-      if (aSelected && !bSelected) return -1;
-      if (!aSelected && bSelected) return 1;
-      return b.count - a.count;
-    }), [options, selectedValues]);
+  const sortedOptions = useMemo(
+    () =>
+      [...options].sort((a, b) => {
+        const aSelected = selectedValues.includes(a.value);
+        const bSelected = selectedValues.includes(b.value);
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        return b.count - a.count;
+      }),
+    [options, selectedValues]
+  );
 
   return (
     <div className="relative">
@@ -171,9 +178,9 @@ const FacetedDropdown = ({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={loading}
-        className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex w-full items-center justify-between rounded-lg border border-(--dark)/20  px-3 py-2 text-sm  disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        <span className={selectedValues.length > 0 ? "text-gray-900" : "text-gray-500"}>
+        <span className={selectedValues.length > 0 ? "text-(--dark)" : "text-(--dark)/50"}>
           {loading ? "Updating..." : displayText}
         </span>
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -181,11 +188,8 @@ const FacetedDropdown = ({
 
       {isOpen && !loading && (
         <>
-          <div 
-            className="fixed inset-0 z-10" 
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-(--dark)/20 bg-(--light) shadow-lg">
             <div className="max-h-60 overflow-auto p-1">
               {sortedOptions.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-gray-500">No options available</div>
@@ -193,21 +197,18 @@ const FacetedDropdown = ({
                 sortedOptions.map((option) => {
                   const isSelected = selectedValues.includes(option.value);
                   const isDisabled = option.count === 0 && !isSelected;
-                  
                   return (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => !isDisabled && toggleOption(option.value)}
                       disabled={isDisabled}
-                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                        isDisabled 
-                          ? 'opacity-40 cursor-not-allowed' 
-                          : 'hover:bg-gray-100 cursor-pointer'
+                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm ${isSelected ? "bg-(--primary1)" : ""} transition-colors ${
+                        isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:font-medium text-(--dark) cursor-pointer'
                       }`}
                     >
                       <div className="flex h-4 w-4 items-center justify-center rounded border border-gray-300">
-                        {isSelected && <Check className="h-3 w-3 text-blue-600" />}
+                        {isSelected && <Check className="h-3 w-3 text-(--dark)" />}
                       </div>
                       <span className={`flex-1 text-left ${isSelected ? "font-medium text-gray-900" : "text-gray-700"}`}>
                         {option.label}
@@ -227,7 +228,6 @@ const FacetedDropdown = ({
   );
 };
 
-
 const LoadingSkeleton = () => (
   <div className="animate-pulse">
     <div className="aspect-[4/3] bg-gray-200 rounded-t-lg" />
@@ -246,75 +246,91 @@ const LoadingSkeleton = () => (
 
 export default function OptimizedRecipeFilters() {
   const router = useRouter();
-  const [filters, setFilters] = useState<FiltersState>(() => stateFromQuery(router.query || {}));
+  const [filters, setFilters] = useState<FiltersState>(DEFAULT_STATE);
   const [data, setData] = useState<FilteredRecipesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  
+
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const debounceTimer = useRef<NodeJS.Timeout>();
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(); // <-- works in browser & node
 
   // Single query fetches both recipes and updated facets
-  const fetchRecipesWithFacets = useCallback(async (
-    currentFilters: FiltersState, 
-    currentPage: number = 1
-  ) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await recipeService.getFilteredRecipes({
-        page: currentPage,
-        perPage: 12,
-        search: currentFilters.search || null,
-        filters: buildGraphQLFilters(currentFilters),
-        fetchPolicy: currentPage === 1 ? 'network-only' : 'cache-first'
-      });
-      
-      if (result.error) {
-        setError(result.error.message);
-      } else if (result.data) {
-        setData(result.data);
+  const fetchRecipesWithFacets = useCallback(
+    async (currentFilters: FiltersState, currentPage: number = 1) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await recipeService.getFilteredRecipes({
+          page: currentPage,
+          perPage: 12,
+          search: currentFilters.search || null,
+          filters: buildGraphQLFilters(currentFilters),
+          fetchPolicy: currentPage === 1 ? 'network-only' : 'cache-first',
+        });
+
+        if ((result as any)?.error) {
+          setError((result as any).error.message);
+        } else if ((result as any)?.data) {
+          setData((result as any).data);
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        setError('Failed to fetch recipes. Please try again.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError('Failed to fetch recipes. Please try again.');
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Debounced search
-  const debouncedSearch = useCallback((value: string) => {
-    clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      const newFilters = { ...filters, search: value };
-      setFilters(newFilters);
-      setPage(1);
-      applyFilters(newFilters);
-    }, 300);
-  }, [filters]);
+  const debouncedSearch = useCallback(
+    (value: string) => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => {
+        const newFilters = { ...filters, search: value };
+        setFilters(newFilters);
+        setPage(1);
+        applyFilters(newFilters);
+      }, 300);
+    },
+    [filters] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
-  // Apply filters and update URL
-  const applyFilters = useCallback((nextFilters: FiltersState, nextPage: number = 1) => {
-    const nextQuery = { ...queryFromState(nextFilters) };
-    if (nextPage > 1) nextQuery.page = nextPage.toString();
-    
-    router.push(
-      { pathname: '/allrecipes', query: nextQuery },
-      undefined,
-      { shallow: true }
-    );
-  }, [router]);
+  useEffect(() => {
+    // cleanup debounce on unmount
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  // Apply filters and update URL (use current pathname instead of hardcoding)
+  const applyFilters = useCallback(
+    (nextFilters: FiltersState, nextPage: number = 1) => {
+      const nextQuery: Record<string, string> = { ...queryFromState(nextFilters) } as any;
+      if (nextPage > 1) nextQuery.page = String(nextPage);
+
+      router.push(
+        { pathname: router.pathname, query: nextQuery },
+        undefined,
+        { shallow: true }
+      );
+    },
+    [router]
+  );
 
   // Update filters
-  const updateFilters = useCallback((updates: Partial<FiltersState>) => {
-    const nextFilters = { ...filters, ...updates };
-    setFilters(nextFilters);
-    setPage(1);
-    applyFilters(nextFilters, 1);
-  }, [filters, applyFilters]);
+  const updateFilters = useCallback(
+    (updates: Partial<FiltersState>) => {
+      const nextFilters = { ...filters, ...updates };
+      setFilters(nextFilters);
+      setPage(1);
+      applyFilters(nextFilters, 1);
+      // console.debug('GraphQL filters:', buildGraphQLFilters(nextFilters));
+    },
+    [filters, applyFilters]
+  );
 
   // Clear all filters
   const clearAllFilters = useCallback(() => {
@@ -327,23 +343,32 @@ export default function OptimizedRecipeFilters() {
   }, [applyFilters]);
 
   // Handle pagination
-  const handlePageChange = useCallback((newPage: number) => {
-    setPage(newPage);
-    applyFilters(filters, newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [filters, applyFilters]);
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setPage(newPage);
+      applyFilters(filters, newPage);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [filters, applyFilters]
+  );
 
-  // Effects
+  // Sync state from URL (only after router is ready)
   useEffect(() => {
-    const queryPage = router.query.page ? parseInt(router.query.page as string) : 1;
-    setPage(queryPage);
-    fetchRecipesWithFacets(filters, queryPage);
-  }, [filters, router.query.page]);
-
-  useEffect(() => {
+    if (!router.isReady) return;
     const newFilters = stateFromQuery(router.query);
     setFilters(newFilters);
-  }, [router.query]);
+
+    const queryPage = router.query.page ? parseInt(router.query.page as string, 10) : 1;
+    setPage(Number.isFinite(queryPage) && queryPage > 0 ? queryPage : 1);
+  }, [router.isReady, router.query]);
+
+  // Fetch whenever filters/page change (and router ready)
+  useEffect(() => {
+    if (!router.isReady) return;
+    fetchRecipesWithFacets(filters, page);
+  }, [router.isReady, filters, page, fetchRecipesWithFacets]);
 
   // Computed values
   const activeFiltersCount = useMemo(() => {
@@ -354,7 +379,7 @@ export default function OptimizedRecipeFilters() {
     count += filters.method.length;
     if (filters.difficulty) count++;
     count += filters.mealTypes.length;
-    count += filters.season.length;
+    if (filters.season) count++;
     if (filters.totalTimePreset) count++;
     if (filters.ratingRange) count++;
     return count;
@@ -364,19 +389,31 @@ export default function OptimizedRecipeFilters() {
   const recipes = data?.filteredRecipes.nodes || [];
   const totalRecipes = data?.filteredRecipes.total || 0;
   const hasMore = data?.filteredRecipes.hasMore || false;
-  const totalPages = Math.ceil(totalRecipes / (data?.filteredRecipes.perPage || 12));
+  const perPage = data?.filteredRecipes.perPage || 12;
+  const totalPages = Math.max(1, Math.ceil(totalRecipes / perPage));
 
+  // simple page window around current (1..totalPages)
+  const pageWindow = useMemo(() => {
+    const windowSize = 5;
+    const half = Math.floor(windowSize / 2);
+    let start = Math.max(1, page - half);
+    let end = Math.min(totalPages, start + windowSize - 1);
+    start = Math.max(1, end - windowSize + 1);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [page, totalPages]);
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen">
       <div className="px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">All Recipes</h1>
           <p className="mt-2 text-gray-600">
-            {loading ? 'Loading recipes...' : 
-             totalRecipes > 0 ? `${totalRecipes} recipes available` : 
-             'Discover your next meal'}
+            {loading && !data
+              ? 'Loading recipes...'
+              : totalRecipes > 0
+              ? `${totalRecipes} recipes available`
+              : 'Discover your next meal'}
           </p>
         </div>
 
@@ -389,7 +426,7 @@ export default function OptimizedRecipeFilters() {
               placeholder="Search recipes by name or ingredient..."
               defaultValue={filters.search}
               onChange={(e) => debouncedSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-3xl border bg-(--light) border-gray-300 px-4 py-3 pr-12 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             {filters.search && (
               <button
@@ -407,47 +444,51 @@ export default function OptimizedRecipeFilters() {
         </div>
 
         {/* Quick Filters - Using facet data */}
-        {facets && (
-          <div className="mb-6 flex flex-wrap gap-2">
+        {!!facets && (
+          <div className="mb-6 flex flex-wrap gap-2  ">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Filter className="h-4 w-4" />
               Quick filters:
             </div>
-            
+
             {/* Time presets from facets */}
             {facets.totalTimePresets.map((preset) => (
               <button
                 key={preset.value}
-                onClick={() => updateFilters({ 
-                  totalTimePreset: filters.totalTimePreset === preset.value ? undefined : preset.value 
-                })}
+                onClick={() =>
+                  updateFilters({
+                    totalTimePreset: filters.totalTimePreset === preset.value ? undefined : preset.value,
+                  })
+                }
                 disabled={preset.count === 0 && filters.totalTimePreset !== preset.value}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                   filters.totalTimePreset === preset.value
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-(--primary1) text-(--dark) border-1 border-(--dark)'
                     : preset.count === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    ? 'bg-transparent text-(--dark)/40 border-(--dark)/20 border-1 cursor-not-allowed'
+                    : 'bg-transparent text-(--dark) border-(--dark) border-1  hover:bg-(--primary1)'
                 }`}
               >
                 {preset.label} {preset.count > 0 && `(${preset.count})`}
               </button>
             ))}
-            
+
             {/* Rating filters from facets */}
             {facets.ratingRanges.map((range) => (
               <button
                 key={range.value}
-                onClick={() => updateFilters({ 
-                  ratingRange: filters.ratingRange === range.value ? undefined : range.value 
-                })}
+                onClick={() =>
+                  updateFilters({
+                    ratingRange: filters.ratingRange === range.value ? undefined : range.value,
+                  })
+                }
                 disabled={range.count === 0 && filters.ratingRange !== range.value}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                   filters.ratingRange === range.value
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-(--primary1) text-(--dark) border-1 border-(--dark)'
                     : range.count === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    ? 'bg-transparent text-(--dark)/40 border-(--dark)/20 border-1 cursor-not-allowed'
+                    : 'bg-transparent text-(--dark) border-(--dark) border-1  hover:bg-(--primary1)'
                 }`}
               >
                 {range.label} {range.count > 0 && `(${range.count})`}
@@ -457,24 +498,22 @@ export default function OptimizedRecipeFilters() {
         )}
 
         {/* Advanced Filters */}
-        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6">
+        <div className="mb-6 rounded-3xl border border-(--dark)/20 bg-(--light) p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearAllFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer transition-colors"
               >
                 Clear all ({activeFiltersCount})
               </button>
             )}
           </div>
-          
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Diet
-              </label>
+              <label className="mb-2 block text-sm font-medium text-(--dark)">Diet</label>
               <FacetedDropdown
                 title="Diet"
                 options={facets?.diet || []}
@@ -486,9 +525,7 @@ export default function OptimizedRecipeFilters() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Cuisine
-              </label>
+              <label className="mb-2 block text-sm font-medium text-(--dark)">Cuisine</label>
               <FacetedDropdown
                 title="Cuisine"
                 options={facets?.cuisine || []}
@@ -500,9 +537,7 @@ export default function OptimizedRecipeFilters() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Cooking Method
-              </label>
+              <label className="mb-2 block text-sm font-medium text-(--dark)">Cooking Method</label>
               <FacetedDropdown
                 title="Method"
                 options={facets?.method || []}
@@ -514,19 +549,17 @@ export default function OptimizedRecipeFilters() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Difficulty
-              </label>
+              <label className="mb-2 block text-sm font-medium text-(--dark)">Difficulty</label>
               <select
                 value={filters.difficulty || ''}
                 onChange={(e) => updateFilters({ difficulty: e.target.value || undefined })}
                 disabled={loading && !facets}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm disabled:opacity-50"
+                className="w-full rounded-lg border border-(--dark)/20 px-3 py-2 text-sm disabled:opacity-50"
               >
                 <option value="">Any difficulty</option>
-                {facets?.difficulty.map(d => (
-                  <option 
-                    key={d.value} 
+                {facets?.difficulty.map((d) => (
+                  <option
+                    key={d.value}
                     value={d.value}
                     disabled={d.count === 0 && filters.difficulty !== d.value}
                   >
@@ -537,9 +570,7 @@ export default function OptimizedRecipeFilters() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Meal Type
-              </label>
+              <label className="mb-2 block text-sm font-medium text-(--dark)">Meal Type</label>
               <FacetedDropdown
                 title="Meal Type"
                 options={facets?.mealTypes || []}
@@ -551,34 +582,33 @@ export default function OptimizedRecipeFilters() {
             </div>
           </div>
 
-          {/* Season filter row */}
-          {facets?.season && facets.season.length > 0 && (
+          {/* Season filter row — single select, no duplicate wrapping */}
+          {!!facets?.season?.length && (
             <div className="mt-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Season
-              </label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Season</label>
               <div className="flex flex-wrap gap-2">
-                {facets.season.map(season => (
-                  <button
-                    key={season.value}
-                    onClick={() => {
-                      const newSeasons = filters.season.includes(season.value)
-                        ? filters.season.filter(s => s !== season.value)
-                        : [...filters.season, season.value];
-                      updateFilters({ season: newSeasons });
-                    }}
-                    disabled={season.count === 0 && !filters.season.includes(season.value)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                      filters.season.includes(season.value)
-                        ? 'bg-blue-100 text-blue-700'
-                        : season.count === 0
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                    }`}
-                  >
-                    {season.label} ({season.count})
-                  </button>
-                ))}
+                {facets.season.map((season) => {
+                  const isSelected = filters.season === season.value;
+                  const isDisabled = season.count === 0 && !isSelected;
+                  return (
+                    <button
+                      key={season.value}
+                      type="button"
+                      onClick={() => updateFilters({ season: isSelected ? undefined : season.value })}
+                      disabled={isDisabled}
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-(--primary1) text-(--dark) border-1 border-(--dark)'
+                          : isDisabled
+                          ? 'bg-transparent text-(--dark)/40 border-(--dark)/20 border-1 cursor-not-allowed'
+                          : 'bg-transparent text-(--dark) border-(--dark) border-1  hover:bg-(--primary1)'
+                      }`}
+                      aria-pressed={isSelected}
+                    >
+                      {season.label} ({season.count})
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -595,7 +625,7 @@ export default function OptimizedRecipeFilters() {
           ) : error ? (
             <div className="rounded-lg bg-red-50 p-8 text-center">
               <p className="text-red-800 mb-4">{error}</p>
-              <button 
+              <button
                 onClick={() => fetchRecipesWithFacets(filters, page)}
                 className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors"
               >
@@ -607,7 +637,7 @@ export default function OptimizedRecipeFilters() {
               <ChefHat className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <p className="mb-4 text-lg text-gray-600">No recipes found with current filters</p>
               <p className="mb-6 text-sm text-gray-500">Try adjusting your filters or search terms</p>
-              <button 
+              <button
                 onClick={clearAllFilters}
                 className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 transition-colors"
               >
@@ -617,20 +647,19 @@ export default function OptimizedRecipeFilters() {
           ) : (
             <>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {recipes.map((r) => (
-                            <RecipeCard
-                              key={r.id}
-                              id={r.id}
-                              title={r.title}
-                              description={r.summary ?? ""}
-                              href={`/recipes/${r.id}`}          // or r.uri if you have it
-                              featuredImageUrl={r.featuredImageUrl ?? undefined}
-                              dietary={r.dietary ?? []}
-                              totalTime={r.totalTime ?? undefined}
-                              difficulty={r.difficulty ?? undefined}
-                              // servings={r.servings ?? undefined} // include if your list query exposes it
-                            />
-                          ))}
+                {recipes.map((r) => (
+                  <RecipeCard
+                    key={r.id}
+                    id={r.id}
+                    title={r.title}
+                    description={r.summary ?? ''}
+                    href={`/recipes/${r.slug ?? r.id}`}          // prefer slug if present
+                    featuredImageUrl={r.featuredImageUrl ?? undefined}
+                    dietary={r.dietary ?? []}
+                    totalTime={r.totalTime ?? undefined}
+                    difficulty={r.difficulty ?? undefined}
+                  />
+                ))}
               </div>
 
               {/* Pagination */}
@@ -643,10 +672,9 @@ export default function OptimizedRecipeFilters() {
                   >
                     Previous
                   </button>
-                  
+
                   <div className="flex gap-1">
-                    {/* Show first page */}
-                    {page > 3 && (
+                    {pageWindow[0] > 1 && (
                       <>
                         <button
                           onClick={() => handlePageChange(1)}
@@ -654,35 +682,27 @@ export default function OptimizedRecipeFilters() {
                         >
                           1
                         </button>
-                        {page > 4 && <span className="px-2 py-2 text-gray-400">...</span>}
+                        {pageWindow[0] > 2 && <span className="px-2 py-2 text-gray-400">...</span>}
                       </>
                     )}
-                    
-                    {/* Show pages around current */}
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const pageNum = Math.max(1, Math.min(page - 2 + i, totalPages - 4 + i));
-                      if (pageNum > 0 && pageNum <= totalPages) {
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                              pageNum === page
-                                ? 'bg-blue-600 text-white'
-                                : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      }
-                      return null;
-                    }).filter(Boolean)}
-                    
-                    {/* Show last page */}
-                    {page < totalPages - 2 && (
+
+                    {pageWindow.map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => handlePageChange(n)}
+                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          n === page ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+
+                    {pageWindow[pageWindow.length - 1] < totalPages && (
                       <>
-                        {page < totalPages - 3 && <span className="px-2 py-2 text-gray-400">...</span>}
+                        {pageWindow[pageWindow.length - 1] < totalPages - 1 && (
+                          <span className="px-2 py-2 text-gray-400">...</span>
+                        )}
                         <button
                           onClick={() => handlePageChange(totalPages)}
                           className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -692,7 +712,7 @@ export default function OptimizedRecipeFilters() {
                       </>
                     )}
                   </div>
-                  
+
                   <button
                     onClick={() => handlePageChange(page + 1)}
                     disabled={!hasMore}

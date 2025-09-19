@@ -37,7 +37,7 @@ const explore = [
 
 export default function Home() {
   return (
-    <div className="mx-layout grid gap-5">
+    <div className="grid gap-5">
       {/* Hero section  */}
       <div className="hero relative">
         {/* Image Container with Overlay */}
