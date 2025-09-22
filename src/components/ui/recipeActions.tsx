@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { cn } from '@/lib/utils';
 
 interface RecipeActionsProps {
   recipeTitle: string;
@@ -9,39 +11,114 @@ const RecipeActions: React.FC<RecipeActionsProps> = ({ recipeTitle, recipeUrl })
   const [isFavorited, setIsFavorited] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
 
-  const handleShare = (platform: string) => {
-    const url = recipeUrl || window.location.href;
-    const text = `Check out this amazing recipe: ${recipeTitle}`;
-    
-    const shareUrls = {
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-      pinterest: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&description=${encodeURIComponent(text)}`,
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`,
-    };
-
-    if (shareUrls[platform as keyof typeof shareUrls]) {
-      window.open(shareUrls[platform as keyof typeof shareUrls], '_blank', 'width=600,height=400');
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      setCanNativeShare(true);
     }
-    setShowShareMenu(false);
-  };
+  }, []);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(recipeUrl || window.location.href);
-    setShowShareMenu(false);
-    // You could add a toast notification here
-  };
+  const getShareUrl = useCallback(() => {
+    if (recipeUrl) return recipeUrl;
+    if (typeof window !== 'undefined') return window.location.href;
+    return '';
+  }, [recipeUrl]);
+
+  type SharePlatform = 'facebook' | 'twitter' | 'pinterest' | 'whatsapp' | 'native';
+
+  const handleShare = useCallback(
+    async (platform: SharePlatform) => {
+      const url = getShareUrl();
+      if (!url) return;
+      const text = `Check out this amazing recipe: ${recipeTitle}`;
+
+      if (platform === 'native') {
+        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+          try {
+            await navigator.share({ title: recipeTitle, text, url });
+          } catch (error) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn('Native share cancelled or failed', error);
+            }
+          }
+        }
+        setShowShareMenu(false);
+        return;
+      }
+
+      const shareUrls: Record<Exclude<SharePlatform, 'native'>, string> = {
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+        twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+        pinterest: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&description=${encodeURIComponent(text)}`,
+        whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`,
+      };
+
+      if (typeof window !== 'undefined') {
+        const shareTarget = shareUrls[platform];
+        if (shareTarget) {
+          window.open(shareTarget, '_blank', 'width=600,height=400');
+        }
+      }
+
+      setShowShareMenu(false);
+    },
+    [getShareUrl, recipeTitle]
+  );
+
+  const copyToClipboard = useCallback(async () => {
+    const url = getShareUrl();
+    if (!url) return;
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Failed to copy link', error);
+      }
+    } finally {
+      setShowShareMenu(false);
+    }
+  }, [getShareUrl]);
+
+  const shareTargets = useMemo(
+    () => (
+      [
+        { id: 'facebook' as SharePlatform, label: 'Facebook', icon: '📘', color: 'text-blue-600' },
+        { id: 'twitter' as SharePlatform, label: 'Twitter', icon: '🐦', color: 'text-blue-400' },
+        { id: 'pinterest' as SharePlatform, label: 'Pinterest', icon: '📌', color: 'text-red-600' },
+        { id: 'whatsapp' as SharePlatform, label: 'WhatsApp', icon: '💬', color: 'text-green-600' },
+        { id: 'native' as SharePlatform, label: 'Share...', icon: '📱', color: 'text-gray-600', hidden: !canNativeShare },
+      ] as Array<{ id: SharePlatform; label: string; icon: string; color: string; hidden?: boolean }>
+    ).filter(item => !item.hidden),
+    [canNativeShare]
+  );
+
+  const basePill = 'flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+  const favoriteClasses = cn(
+    basePill,
+    isFavorited
+      ? 'bg-red-100 text-red-600 border-red-200'
+      : 'bg-white text-gray-600 border-gray-200 hover:border-red-200 hover:text-red-600'
+  );
+  const bookmarkClasses = cn(
+    basePill,
+    'bg-white text-gray-600 border-gray-200 hover:bg-[color:var(--primary1)] hover:text-white',
+    isBookmarked && 'bg-[color:var(--primary1)] text-white border-[color:var(--primary1)]'
+  );
+  const shareTriggerClasses = cn(
+    basePill,
+    'bg-[color:var(--primary2)] text-white border-[color:var(--primary2)] hover:bg-[color:var(--primary3)] focus-visible:ring-[color:var(--primary3)]'
+  );
 
   return (
     <div className="flex items-center gap-4">
       <button
-        onClick={() => setIsFavorited(!isFavorited)}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${
-          isFavorited 
-            ? 'bg-red-100 text-red-600 border-2 border-red-200' 
-            : 'bg-white text-gray-600 border-2 border-gray-200 hover:border-red-200 hover:text-red-600'
-        }`}
+        onClick={() => setIsFavorited(prev => !prev)}
+        className={favoriteClasses}
+        type="button"
       >
         <span className={`text-lg ${isFavorited ? '❤️' : '🤍'}`}>
           {isFavorited ? '❤️' : '🤍'}
@@ -52,28 +129,9 @@ const RecipeActions: React.FC<RecipeActionsProps> = ({ recipeTitle, recipeUrl })
       </button>
 
       <button
-        onClick={() => setIsBookmarked(!isBookmarked)}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${
-          isBookmarked 
-            ? 'text-white border-2' 
-            : 'bg-white text-gray-600 border-2 border-gray-200 hover:text-white'
-        }`}
-        style={{ 
-          backgroundColor: isBookmarked ? 'var(--primary1)' : undefined,
-          borderColor: isBookmarked ? 'var(--primary1)' : undefined,
-        }}
-        onMouseEnter={(e) => {
-          if (!isBookmarked) {
-            e.currentTarget.style.backgroundColor = 'var(--primary1)';
-            e.currentTarget.style.borderColor = 'var(--primary1)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isBookmarked) {
-            e.currentTarget.style.backgroundColor = 'white';
-            e.currentTarget.style.borderColor = '#e5e7eb';
-          }
-        }}
+        onClick={() => setIsBookmarked(prev => !prev)}
+        className={bookmarkClasses}
+        type="button"
       >
         <span className="text-lg">📌</span>
         <span className="font-medium">
@@ -83,54 +141,36 @@ const RecipeActions: React.FC<RecipeActionsProps> = ({ recipeTitle, recipeUrl })
 
       <div className="relative">
         <button
-          onClick={() => setShowShareMenu(!showShareMenu)}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-gray-600 border-2 border-gray-200 hover:text-white transition-all duration-200"
-          style={{ backgroundColor: 'var(--primary2)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--primary3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--primary2)';
-          }}
+          onClick={() => setShowShareMenu(prev => !prev)}
+          className={shareTriggerClasses}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={showShareMenu}
         >
           <span className="text-lg">📤</span>
           <span className="font-medium text-white">Share</span>
         </button>
 
         {showShareMenu && (
-          <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-48">
-            <button
-              onClick={() => handleShare('facebook')}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
-            >
-              <span className="text-blue-600">📘</span>
-              Facebook
-            </button>
-            <button
-              onClick={() => handleShare('twitter')}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
-            >
-              <span className="text-blue-400">🐦</span>
-              Twitter
-            </button>
-            <button
-              onClick={() => handleShare('pinterest')}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
-            >
-              <span className="text-red-600">📌</span>
-              Pinterest
-            </button>
-            <button
-              onClick={() => handleShare('whatsapp')}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
-            >
-              <span className="text-green-600">💬</span>
-              WhatsApp
-            </button>
+          <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-48" role="menu">
+            {shareTargets.map(target => (
+              <button
+                key={target.id}
+                onClick={() => handleShare(target.id)}
+                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
+                role="menuitem"
+                type="button"
+              >
+                <span className={target.color}>{target.icon}</span>
+                {target.label}
+              </button>
+            ))}
             <hr className="my-1" />
             <button
               onClick={copyToClipboard}
               className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
+              role="menuitem"
+              type="button"
             >
               <span className="text-gray-600">📋</span>
               Copy Link
@@ -143,4 +183,4 @@ const RecipeActions: React.FC<RecipeActionsProps> = ({ recipeTitle, recipeUrl })
 };
 
 
-export default RecipeActions ; 
+export default RecipeActions;

@@ -1,8 +1,11 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Recipe } from '@/utils/recipe';
-import RecipeActions from './recipeActions';
+
 import { AdSlot } from '@/components/ads/adSlot';
+import { Recipe, type Ingredient, type Instruction, type Equipment } from '@/utils/recipe';
+import { formatDuration, formatList, formatScaledAmount } from '@/utils/recipeFormatting';
+
+import RecipeActions from './recipeActions';
 
 type AdControls = {
   /** Insert an in‑read ad after these step numbers (1-based). Example: [2, 5] */
@@ -18,67 +21,6 @@ interface RecipeDetailsProps {
   ads?: AdControls;
 }
 
-/* ----------------------------- Utils & Formatters ---------------------------- */
-
-const FRACTIONS: Record<string, number> = { '½': 0.5, '⅓': 1/3, '⅔': 2/3, '¼': 0.25, '¾': 0.75 };
-
-function normalizeAmountToNumber(amount: string | number | undefined | null): number | null {
-  if (amount == null) return null;
-  if (typeof amount === 'number' && Number.isFinite(amount)) return amount;
-
-  const raw = String(amount).trim();
-  if (!raw) return null;
-
-  // Replace unicode fractions (½, ¼ …) with numerics
-  const replaced = raw.replace(/[½⅓⅔¼¾]/g, (m) => String(FRACTIONS[m]));
-  // Support "1 1/2" or "1/2"
-  const parts = replaced.split(/\s+/).filter(Boolean);
-
-  let total = 0;
-  for (const p of parts) {
-    if (/^\d+\/\d+$/.test(p)) {
-      const [n, d] = p.split('/').map(Number);
-      if (!d) return null;
-      total += n / d;
-      continue;
-    }
-    const n = Number(p);
-    if (Number.isFinite(n)) { total += n; continue; }
-    return null; // Contains non-numeric token → keep original
-  }
-  return total;
-}
-
-function formatScaledAmount(amount: string | number, scale: number, unit?: string) {
-  const numeric = normalizeAmountToNumber(amount);
-  if (numeric == null) return `${amount}${unit ? ` ${unit}` : ''}`;
-  const scaled = numeric * scale;
-  const rounded = Math.round(scaled * 100) / 100;
-  const s = Number.isInteger(rounded) ? String(rounded) : String(rounded);
-  return `${s}${unit ? ` ${unit}` : ''}`;
-}
-
-function formatTime(value?: number | string): string {
-  if (value == null || value === '') return '—';
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const h = Math.floor(value / 60);
-    const m = value % 60;
-    return h ? `${h}h ${m}m` : `${m} min`;
-  }
-  const s = String(value);
-  if (s.startsWith('PT')) {
-    const h = Number((s.match(/(\d+)H/) || [])[1] || 0);
-    const m = Number((s.match(/(\d+)M/) || [])[1] || 0);
-    return h ? `${h}h ${m}m` : `${m} min`;
-  }
-  return s;
-}
-
-function formatArray(value?: string | string[]) {
-  if (!value) return '';
-  return Array.isArray(value) ? value.filter(Boolean).join(', ') : value;
-}
-
 /* -------------------------------- Component --------------------------------- */
 
 export default function RecipeDetails({
@@ -88,7 +30,7 @@ export default function RecipeDetails({
   const { recipeData, featuredImage, title, uri } = recipe;
 
   const displayTitle = recipeData?.name || title || 'Recipe';
-  const cuisines = formatArray(recipeData?.cuisine);
+  const cuisines = formatList(recipeData?.cuisine);
   const hasHero = Boolean(featuredImage?.node?.sourceUrl);
 
   const tags = useMemo(() => {
@@ -107,6 +49,21 @@ export default function RecipeDetails({
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const scale = servings / baseServings;
   const rating = Math.max(0, Math.min(5, Number(recipeData?.rating || 0)));
+
+  const ingredients = useMemo<Ingredient[]>(
+    () => ((recipeData?.ingredients ?? []) as Ingredient[]),
+    [recipeData?.ingredients]
+  );
+
+  const equipmentItems = useMemo<Equipment[]>(
+    () => ((recipeData?.equipment ?? []) as Equipment[]),
+    [recipeData?.equipment]
+  );
+
+  const instructions = useMemo<Instruction[]>(
+    () => ((recipeData?.instructions ?? []) as Instruction[]),
+    [recipeData?.instructions]
+  );
 
   const toggleChecked = useCallback((idx: number) => {
     setChecked((prev) => {
@@ -220,8 +177,8 @@ export default function RecipeDetails({
         {/* QUICK INFO CARDS */}
         <section aria-label="Recipe quick info" className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
           {[
-            { label: 'Prep Time', value: formatTime(recipeData?.prepTime), color: 'var(--primary1)', emoji: '⏱️' },
-            { label: 'Cook Time', value: formatTime(recipeData?.cookTime), color: 'var(--primary2)', emoji: '🔥' },
+            { label: 'Prep Time', value: formatDuration(recipeData?.prepTime), color: 'var(--primary1)', emoji: '⏱️' },
+            { label: 'Cook Time', value: formatDuration(recipeData?.cookTime), color: 'var(--primary2)', emoji: '🔥' },
             { label: recipeData?.servingsUnit || 'Servings', value: recipeData?.servings ?? '—', color: 'var(--primary3)', emoji: '🍽️' },
             { label: 'Difficulty', value: recipeData?.difficulty || '—', color: 'var(--primary4)', emoji: '📊' },
           ].map((card) => (
@@ -269,7 +226,7 @@ export default function RecipeDetails({
 
               <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6">
                 <ul className="space-y-3">
-                  {recipeData?.ingredients?.map((ing: any, idx: number) => {
+                  {ingredients.map((ing, idx) => {
                     const checkedNow = checked.has(idx);
                     const displayAmount = formatScaledAmount(ing.amount, scale, ing.unit);
                     const ingId = `ingredient-${idx}`;
@@ -299,12 +256,12 @@ export default function RecipeDetails({
             </section>
 
             {/* EQUIPMENT */}
-            {!!recipeData?.equipment?.length && (
+            {!!equipmentItems.length && (
               <section className="mb-8" id="equipment" aria-labelledby="equipment-heading">
                 <h2 id="equipment-heading" className="text-2xl md:text-3xl font-bold mb-4 text-[color:var(--dark)]">Equipment Needed</h2>
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                   <ul className="grid gap-3">
-                    {recipeData.equipment.map((item: any, idx: number) => (
+                    {equipmentItems.map((item, idx) => (
                       <li key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                         <span className="text-2xl" aria-hidden>🔧</span>
                         {item.link ? (
@@ -392,7 +349,7 @@ export default function RecipeDetails({
               </h2>
 
               <div className="space-y-6">
-                {recipeData?.instructions?.map((step: any, index: number) => {
+                {instructions.map((step, index) => {
                   const stepNo = index + 1;
                   const showInlineAd = ads.injectAfterSteps?.includes(stepNo) ?? false;
 

@@ -63,21 +63,21 @@ export function useRecipe(
     currentIdRef.current = id;
 
     try {
-      const { recipe, error } = await recipeService.fetchRecipe(
+      const { data, error } = await recipeService.fetchRecipe(
         id,
         { ...currentOptionsRef.current, ...overrideOptions }
       );
 
       setState({
-        recipe,
+        recipe: data,
         loading: false,
         error,
       });
 
       if (error) {
         onError?.(error);
-      } else if (recipe) {
-        onSuccess?.(recipe);
+      } else if (data) {
+        onSuccess?.(data);
       }
     } catch (unexpectedError) {
       const error: RecipeServiceError = {

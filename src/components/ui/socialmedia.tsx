@@ -11,6 +11,7 @@ export default function SocialMedia({ className , socialMedia }: { className?: s
 
       {socialMedia.map((name: string, index: number) => (
         <Icon
+          key={`${name}-${index}`}
           name={name}
           size={24}
           className="hover:scale-110 transition-transform cursor-pointer"

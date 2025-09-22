@@ -1,8 +1,12 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Recipe } from '@/utils/recipe';
-import RecipeActions from './recipeActions';
+
 import { AdSlot } from '@/components/ads/adSlot';
+import { Recipe, type Ingredient, type Instruction, type Equipment } from '@/utils/recipe';
+import { formatDuration, formatList, formatScaledAmount } from '@/utils/recipeFormatting';
+import { DEFAULT_DARK_COLORS, DEFAULT_TAG_COLORS, extendDarkColors, extendTagPalette, getDeterministicTagColor, getTagTextColorClass } from '@/utils/tagHelpers';
+
+import RecipeActions from './recipeActions';
 
 type AdControls = {
   injectAfterSteps?: number[]; // In-read ad after these step numbers (1-based)
@@ -17,59 +21,26 @@ interface Props {
 
 /* ----------------------------- Helpers ----------------------------- */
 
-const FRACTIONS: Record<string, number> = { '½': 0.5, '⅓': 1/3, '⅔': 2/3, '¼': 0.25, '¾': 0.75 };
-
-function normalizeAmountToNumber(amount: string | number | undefined | null): number | null {
-  if (amount == null) return null;
-  if (typeof amount === 'number' && Number.isFinite(amount)) return amount;
-  const raw = String(amount).trim();
-  if (!raw) return null;
-  const replaced = raw.replace(/[½⅓⅔¼¾]/g, m => String(FRACTIONS[m]));
-  const parts = replaced.split(/\s+/).filter(Boolean);
-  let total = 0;
-  for (const p of parts) {
-    if (/^\d+\/\d+$/.test(p)) {
-      const [n, d] = p.split('/').map(Number);
-      if (!d) return null;
-      total += n / d;
-      continue;
-    }
-    const n = Number(p);
-    if (Number.isFinite(n)) { total += n; continue; }
-    return null;
-  }
-  return total;
-}
-
-function formatScaledAmount(amount: string | number, scale: number, unit?: string) {
-  const numeric = normalizeAmountToNumber(amount);
-  if (numeric == null) return `${amount}${unit ? ` ${unit}` : ''}`;
-  const scaled = Math.round((numeric * scale) * 100) / 100;
-  return `${Number.isInteger(scaled) ? scaled : scaled.toString()}${unit ? ` ${unit}` : ''}`;
-}
-
-function formatTime(value?: number | string): string {
-  if (value == null || value === '') return '—';
-  if (typeof value === 'number') {
-    const h = Math.floor(value / 60);
-    const m = value % 60;
-    return h ? `${h}h ${m}m` : `${m} min`;
-  }
-  const s = String(value);
-  if (s.startsWith('PT')) {
-    const h = Number((s.match(/(\d+)H/) || [])[1] || 0);
-    const m = Number((s.match(/(\d+)M/) || [])[1] || 0);
-    return h ? `${h}h ${m}m` : `${m} min`;
-  }
-  return s;
-}
-
-function listToCsv(value?: string | string[]) {
-  if (!value) return '';
-  return Array.isArray(value) ? value.filter(Boolean).join(', ') : value;
-}
-
 /* -------------------------- Main Component ------------------------- */
+
+const MODERN_TAG_COLORS = extendTagPalette(DEFAULT_TAG_COLORS, [
+  'bg-[color:var(--primary1)]',
+  'bg-[color:var(--primary2)]',
+  'bg-[color:var(--primary3)]',
+  'bg-[color:var(--primary4)]',
+  'bg-amber-500',
+  'bg-yellow-500',
+  'bg-cyan-500',
+  'bg-sky-500',
+  'bg-lime-600',
+  'bg-stone-600',
+]);
+
+const MODERN_DARK_COLORS = extendDarkColors(DEFAULT_DARK_COLORS, [
+  'bg-[color:var(--primary3)]',
+  'bg-[color:var(--dark)]',
+  'bg-stone-600',
+]);
 
 export default function RecipeDetailsModern({
   recipe,
@@ -78,7 +49,7 @@ export default function RecipeDetailsModern({
   const { recipeData, featuredImage, title, uri } = recipe;
 
   const displayTitle = recipeData?.name || title || 'Recipe';
-  const cuisines = listToCsv(recipeData?.cuisine);
+  const cuisines = formatList(recipeData?.cuisine);
   const hasHero = Boolean(featuredImage?.node?.sourceUrl);
 
   const tags = useMemo(() => {
@@ -109,56 +80,125 @@ export default function RecipeDetailsModern({
   // Rating
   const rating = Math.max(0, Math.min(5, Number(recipeData?.rating || 0)));
 
-  /* === Tag helpers (reuse from RecipeCard style) === */
-// Extended, brand-matching accent colors
-const TAG_COLORS = [
-  "bg-[color:var(--primary1)]",
-  "bg-[color:var(--primary2)]",
-  "bg-[color:var(--primary3)]",
-  "bg-[color:var(--primary4)]",
-  "bg-emerald-600",
-  "bg-teal-600",
-  "bg-amber-500",
-  "bg-yellow-500",
-  "bg-rose-500",
-  "bg-pink-500",
-  "bg-cyan-500",
-  "bg-indigo-600",
-  "bg-sky-500",
-  "bg-lime-600",
-  "bg-fuchsia-600",
-  "bg-stone-600",
-];
+  const instructions = useMemo<Instruction[]>(
+    () => ((recipeData?.instructions ?? []) as Instruction[]),
+    [recipeData?.instructions]
+  );
 
-const extractInitials = (dietTag: string): string =>
-  dietTag
-    .split(/[\s-]+/)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join("");
+  const ingredients = useMemo<Ingredient[]>(
+    () => ((recipeData?.ingredients ?? []) as Ingredient[]),
+    [recipeData?.ingredients]
+  );
 
-// Deterministic color based on tag string
-const getTagColor = (tag: string): string => {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) {
-    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
-};
+  const equipmentItems = useMemo<Equipment[]>(
+    () => ((recipeData?.equipment ?? []) as Equipment[]),
+    [recipeData?.equipment]
+  );
 
-// Decide text contrast
-const getTextColor = (bgColor: string): string => {
-  const darkBackgrounds = [
-    "bg-[color:var(--primary3)]",
-    "bg-[color:var(--dark)]",
-    "bg-indigo-600",
-    "bg-emerald-600",
-    "bg-teal-600",
-    "bg-fuchsia-600",
-    "bg-rose-500",
-    "bg-stone-600",
-  ];
-  return darkBackgrounds.includes(bgColor) ? "text-white" : "text-black";
-};
+  const nutritionSection = useMemo(() => {
+    if (!recipeData?.nutrition) {
+      return null;
+    }
+
+    type NutKey =
+      | 'calories' | 'carbohydrates' | 'protein' | 'fat' | 'saturated_fat' | 'trans_fat'
+      | 'fiber' | 'sugar' | 'cholesterol' | 'sodium' | 'potassium' | 'calcium' | 'iron'
+      | 'vitamin_a' | 'vitamin_c' | 'vitamin_d' | 'vitamin_e';
+
+    const LABELS: Record<NutKey, string> = {
+      calories: 'Calories',
+      carbohydrates: 'Carbs',
+      protein: 'Protein',
+      fat: 'Fat',
+      saturated_fat: 'Saturated Fat',
+      trans_fat: 'Trans Fat',
+      fiber: 'Fiber',
+      sugar: 'Sugar',
+      cholesterol: 'Cholesterol',
+      sodium: 'Sodium',
+      potassium: 'Potassium',
+      calcium: 'Calcium',
+      iron: 'Iron',
+      vitamin_a: 'Vitamin A',
+      vitamin_c: 'Vitamin C',
+      vitamin_d: 'Vitamin D',
+      vitamin_e: 'Vitamin E',
+    };
+
+    const UNITS: Partial<Record<NutKey, string>> = {
+      calories: '',
+      carbohydrates: 'g',
+      protein: 'g',
+      fat: 'g',
+      saturated_fat: 'g',
+      trans_fat: 'g',
+      fiber: 'g',
+      sugar: 'g',
+      cholesterol: 'mg',
+      sodium: 'mg',
+      potassium: 'mg',
+      calcium: 'mg',
+      iron: 'mg',
+      vitamin_a: 'µg',
+      vitamin_c: 'mg',
+      vitamin_d: 'µg',
+      vitamin_e: 'mg',
+    };
+
+    const ORDER: NutKey[] = [
+      'calories',
+      'protein', 'carbohydrates', 'fat',
+      'saturated_fat', 'trans_fat', 'fiber', 'sugar',
+      'cholesterol', 'sodium', 'potassium', 'calcium', 'iron',
+      'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e',
+    ];
+
+    const TONES = [
+      { border: 'border-orange-100', bg: 'bg-orange-50', text: 'text-orange-700' },
+      { border: 'border-green-100',  bg: 'bg-green-50',  text: 'text-green-700'  },
+      { border: 'border-sky-100',    bg: 'bg-sky-50',    text: 'text-sky-700'    },
+      { border: 'border-rose-100',   bg: 'bg-rose-50',   text: 'text-rose-700'   },
+      { border: 'border-amber-100',  bg: 'bg-amber-50',  text: 'text-amber-700'  },
+      { border: 'border-teal-100',   bg: 'bg-teal-50',   text: 'text-teal-700'   },
+    ];
+
+    const nutritionValues = recipeData.nutrition as Record<string, number | string | null | undefined>;
+
+    const cards = ORDER
+      .map((key, index) => {
+        const value = nutritionValues[key] ?? nutritionValues[key.replace('_', '')];
+        if (value == null || value === '') {
+          return null;
+        }
+
+        const tone = TONES[index % TONES.length];
+        const unit = UNITS[key];
+
+        return (
+          <div key={key} className={`rounded-2xl border p-4 ${tone.border} ${tone.bg}`}>
+            <div className={`text-xs uppercase ${tone.text}`}>{LABELS[key]}</div>
+            <div className={`text-xl font-bold ${tone.text}`}>
+              {value}{unit ? <span className="text-sm ml-0.5">{unit}</span> : null}
+            </div>
+          </div>
+        );
+      })
+      .filter(Boolean);
+
+    if (!cards.length) {
+      return null;
+    }
+
+    return (
+      <section className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6" aria-labelledby="nutrition-heading">
+        <h2 id="nutrition-heading" className="text-xl md:text-2xl font-bold mb-4">Nutrition</h2>
+        <p className="sr-only">Nutrition facts including calories, macros, and vitamins per serving.</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {cards}
+        </div>
+      </section>
+    );
+  }, [recipeData?.nutrition]);
 
 
 
@@ -180,15 +220,14 @@ const getTextColor = (bgColor: string): string => {
                 <div className="flex flex-wrap items-center gap-2 mb-3" aria-label="Recipe tags">
                   {tags.map((rawTag, index) => {
                     const tag = String(rawTag).replace(/-/g, " ").trim();
-                    console.log('tag' , tag) ; 
-                    const bg = getTagColor(tag);
-                    const text = getTextColor(bg);
+                    const bg = getDeterministicTagColor(tag, MODERN_TAG_COLORS);
+                    const text = getTagTextColorClass(bg, MODERN_DARK_COLORS);
                     return (
                       <a
                         key={`${tag}-${index}`}
                         href={`/recipes?tag=${encodeURIComponent(tag)}`}
                         className={`${bg} ${text} px-3 py-1 rounded-full text-sm font-medium motion-safe:transition-transform hover:scale-110`}
-                        title={tag}                       /* tooltip with full name */
+                        title={tag}
                         aria-label={`View more recipes tagged ${tag}`}
                       >
                         {tag}
@@ -238,8 +277,8 @@ const getTextColor = (bgColor: string): string => {
             {/* Quick Facts */}
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { k: 'Prep', v: formatTime(recipeData?.prepTime), color: 'var(--primary1)' },
-                { k: 'Cook', v: formatTime(recipeData?.cookTime), color: 'var(--primary2)' },
+                { k: 'Prep', v: formatDuration(recipeData?.prepTime), color: 'var(--primary1)' },
+                { k: 'Cook', v: formatDuration(recipeData?.cookTime), color: 'var(--primary2)' },
                 { k: recipeData?.servingsUnit || 'Servings', v: recipeData?.servings ?? '—', color: 'var(--primary3)' },
                 { k: 'Difficulty', v: recipeData?.difficulty || '—', color: 'var(--primary4)' },
               ].map((c) => (
@@ -278,7 +317,7 @@ const getTextColor = (bgColor: string): string => {
             <h2 id="steps" className="text-2xl md:text-3xl font-bold mb-4">Step-by-Step</h2>
 
             <ol className="relative border-s-2 border-gray-200 pl-6 space-y-6">
-              {recipeData?.instructions?.map((step: any, index: number) => {
+              {instructions.map((step, index) => {
                 const stepNo = index + 1;
                 const showInlineAd = ads.injectAfterSteps?.includes(stepNo) ?? false;
 
@@ -398,7 +437,7 @@ const getTextColor = (bgColor: string): string => {
                 </div>
 
                 <ul className="divide-y divide-gray-100">
-                  {recipeData?.ingredients?.map((ing: any, idx: number) => {
+                  {ingredients.map((ing, idx) => {
                     const isChecked = checked.has(idx);
                     const displayAmount = formatScaledAmount(ing.amount, scale, ing.unit);
                     const ingId = `ing-${idx}`;
@@ -426,126 +465,15 @@ const getTextColor = (bgColor: string): string => {
                 </ul>
               </section>
 
-              {/* Nutrition (all properties) */}
-              {!!recipeData?.nutrition && (
-                <>
-                  {(() => {
-                    // ---- config / helpers (scoped) ----
-                    type NutKey =
-                      | 'calories' | 'carbohydrates' | 'protein' | 'fat' | 'saturated_fat' | 'trans_fat'
-                      | 'fiber' | 'sugar' | 'cholesterol' | 'sodium' | 'potassium' | 'calcium' | 'iron'
-                      | 'vitamin_a' | 'vitamin_c' | 'vitamin_d' | 'vitamin_e';
-
-                    const LABELS: Record<NutKey, string> = {
-                      calories: 'Calories',
-                      carbohydrates: 'Carbs',
-                      protein: 'Protein',
-                      fat: 'Fat',
-                      saturated_fat: 'Saturated Fat',
-                      trans_fat: 'Trans Fat',
-                      fiber: 'Fiber',
-                      sugar: 'Sugar',
-                      cholesterol: 'Cholesterol',
-                      sodium: 'Sodium',
-                      potassium: 'Potassium',
-                      calcium: 'Calcium',
-                      iron: 'Iron',
-                      vitamin_a: 'Vitamin A',
-                      vitamin_c: 'Vitamin C',
-                      vitamin_d: 'Vitamin D',
-                      vitamin_e: 'Vitamin E',
-                    };
-
-                    // Units are typical nutrition label units; adjust if your backend uses different ones.
-                    const UNITS: Partial<Record<NutKey, string>> = {
-                      calories: '',
-                      carbohydrates: 'g',
-                      protein: 'g',
-                      fat: 'g',
-                      saturated_fat: 'g',
-                      trans_fat: 'g',
-                      fiber: 'g',
-                      sugar: 'g',
-                      cholesterol: 'mg',
-                      sodium: 'mg',
-                      potassium: 'mg',
-                      calcium: 'mg',
-                      iron: 'mg',
-                      vitamin_a: 'µg',
-                      vitamin_c: 'mg',
-                      vitamin_d: 'µg',
-                      vitamin_e: 'mg',
-                    };
-
-                    // Display order (grouped: headline → macros → fats/sugars/fiber → minerals → vitamins)
-                    const ORDER: NutKey[] = [
-                      'calories',
-                      'protein', 'carbohydrates', 'fat',
-                      'saturated_fat', 'trans_fat', 'fiber', 'sugar',
-                      'cholesterol', 'sodium', 'potassium', 'calcium', 'iron',
-                      'vitamin_a', 'vitamin_c', 'vitamin_d', 'vitamin_e',
-                    ];
-
-                    // Light, readable color tones rotating by card index
-                    const TONES = [
-                      { border: 'border-orange-100', bg: 'bg-orange-50', text: 'text-orange-700' },
-                      { border: 'border-green-100',  bg: 'bg-green-50',  text: 'text-green-700'  },
-                      { border: 'border-sky-100',    bg: 'bg-sky-50',    text: 'text-sky-700'    },
-                      { border: 'border-rose-100',   bg: 'bg-rose-50',   text: 'text-rose-700'   },
-                      { border: 'border-amber-100',  bg: 'bg-amber-50',  text: 'text-amber-700'  },
-                      { border: 'border-teal-100',   bg: 'bg-teal-50',   text: 'text-teal-700'   },
-                    ];
-
-                    const nutrition = recipeData.nutrition as Record<string, number | string | null | undefined>;
-
-                    const entries = ORDER
-                      .filter((k) => nutrition?.[k] !== null && nutrition?.[k] !== undefined && nutrition?.[k] !== '')
-                      .map((k, i) => {
-                        const value = nutrition[k] as number | string;
-                        const unit = UNITS[k] ?? '';
-                        const tone = TONES[i % TONES.length];
-                        return { key: k, label: LABELS[k], value, unit, tone };
-                      });
-
-                    if (!entries.length) return null;
-
-                    return (
-                      <section className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6" aria-labelledby="nutrition">
-                        <h2 id="nutrition" className="text-xl md:text-2xl font-bold mb-3">Nutrition</h2>
-
-                        {/* Assistive summary */}
-                        <p className="sr-only">
-                          Nutrition facts for this recipe including calories, macronutrients, fats, fiber, sugars, minerals and vitamins.
-                        </p>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {entries.map(({ key, label, value, unit, tone }) => (
-                            <div
-                              key={key}
-                              className={`rounded-xl border ${tone.border} ${tone.bg} p-4`}
-                              role="group"
-                              aria-label={`${label}: ${value}${unit ? ` ${unit}` : ''}`}
-                            >
-                              <div className={`text-xs uppercase ${tone.text}`}>{label}</div>
-                              <div className={`text-xl font-bold ${tone.text}`}>
-                                {value}{unit ? <span className="text-sm ml-0.5">{unit}</span> : null}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    );
-                  })()}
-                </>
-              )}
+              {nutritionSection}
 
 
               {/* Equipment */}
-              {!!recipeData?.equipment?.length && (
+              {!!equipmentItems.length && (
                 <section className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
                   <h2 id="equipment" className="text-xl md:text-2xl font-bold mb-3">Equipment</h2>
                   <ul className="grid gap-2">
-                    {recipeData.equipment.map((item: any, i: number) => (
+                    {equipmentItems.map((item, i) => (
                       <li key={i} className="flex items-center gap-2">
                         <span aria-hidden>🔧</span>
                         {item.link ? (

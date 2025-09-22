@@ -1,16 +1,18 @@
-import { recipeService } from "@/lib/recipe-service";
-import { RecipeServiceError } from "@/utils/recipe";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { recipeService, type FetchRecipesListOptions } from "@/lib/recipe-service";
+import type { GetRecipesData } from "@/lib/graphql-queries";
+import type { RecipeServiceError } from "@/utils/recipe";
+
 interface UseRecipesListState {
-  data: any | null; // Replace 'any' with your actual recipes list type
+  data: GetRecipesData | null;
   loading: boolean;
   error: RecipeServiceError | null;
   hasNextPage: boolean;
 }
 
 interface UseRecipesListReturn extends UseRecipesListState {
-  fetchRecipesList: (first?: number, after?: string) => Promise<void>;
+  fetchRecipesList: (options?: Partial<FetchRecipesListOptions>) => Promise<void>;
   loadMore: () => Promise<void>;
   refetch: () => Promise<void>;
   clearError: () => void;
@@ -19,19 +21,33 @@ interface UseRecipesListReturn extends UseRecipesListState {
 interface UseRecipesListOptions {
   first?: number;
   autoFetch?: boolean;
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: GetRecipesData) => void;
   onError?: (error: RecipeServiceError) => void;
 }
 
-export function useRecipesList(
-  options: UseRecipesListOptions = {}
-): UseRecipesListReturn {
-  const {
-    first = 10,
-    autoFetch = true,
-    onSuccess,
-    onError,
-  } = options;
+type RequestSnapshot = Partial<FetchRecipesListOptions> & {
+  page: number;
+  perPage: number;
+};
+
+function mergePages(prev: GetRecipesData | null, next: GetRecipesData, page: number): GetRecipesData {
+  if (page <= 1 || !prev?.filteredRecipes) {
+    return next;
+  }
+
+  const previousNodes = prev.filteredRecipes.nodes ?? [];
+  const incomingNodes = next.filteredRecipes.nodes ?? [];
+
+  return {
+    filteredRecipes: {
+      ...next.filteredRecipes,
+      nodes: [...previousNodes, ...incomingNodes],
+    },
+  };
+}
+
+export function useRecipesList(options: UseRecipesListOptions = {}): UseRecipesListReturn {
+  const { first = 10, autoFetch = true, onSuccess, onError } = options;
 
   const [state, setState] = useState<UseRecipesListState>({
     data: null,
@@ -40,69 +56,79 @@ export function useRecipesList(
     hasNextPage: false,
   });
 
-  const currentParamsRef = useRef({ first, after: undefined as string | undefined });
+  const lastRequestRef = useRef<RequestSnapshot>({ page: 1, perPage: first });
 
-  const fetchRecipesList = useCallback(async (
-    fetchFirst: number = first,
-    after?: string
-  ): Promise<void> => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    currentParamsRef.current = { first: fetchFirst, after };
-
-    try {
-      const { data, error } = await recipeService.fetchRecipesList(fetchFirst, after);
-
-      setState({
-        data,
-        loading: false,
-        error,
-        hasNextPage: data?.recipes?.pageInfo?.hasNextPage || false,
-      });
-
-      if (error) {
-        onError?.(error);
-      } else if (data) {
-        onSuccess?.(data);
-      }
-    } catch (unexpectedError) {
-      const error: RecipeServiceError = {
-        code: 'UNKNOWN_ERROR',
-        message: 'An unexpected error occurred',
-        timestamp: Date.now(),
-        originalError: unexpectedError instanceof Error ? unexpectedError : undefined,
+  const fetchRecipesList = useCallback(
+    async (requestOverrides: Partial<FetchRecipesListOptions> = {}): Promise<void> => {
+      const page = requestOverrides.page ?? 1;
+      const perPage = requestOverrides.perPage ?? first;
+      const request: RequestSnapshot = {
+        ...requestOverrides,
+        page,
+        perPage,
       };
 
-      setState({
-        data: null,
-        loading: false,
-        error,
-        hasNextPage: false,
-      });
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      lastRequestRef.current = request;
 
-      onError?.(error);
-    }
-  }, [first, onSuccess, onError]);
+      try {
+        const { data, error } = await recipeService.fetchRecipesList(request);
+
+        let resolvedData: GetRecipesData | null = null;
+        setState(prev => {
+          const mergedData = data ? mergePages(prev.data, data, page) : null;
+          resolvedData = mergedData;
+          return {
+            data: mergedData,
+            loading: false,
+            error,
+            hasNextPage: mergedData?.filteredRecipes?.hasMore ?? false,
+          };
+        });
+
+        if (error) {
+          onError?.(error);
+        } else if (resolvedData) {
+          onSuccess?.(resolvedData);
+        }
+      } catch (unexpectedError) {
+        const error: RecipeServiceError = {
+          code: "UNKNOWN_ERROR",
+          message: "An unexpected error occurred",
+          timestamp: Date.now(),
+          originalError: unexpectedError instanceof Error ? unexpectedError : undefined,
+        };
+
+        setState({
+          data: null,
+          loading: false,
+          error,
+          hasNextPage: false,
+        });
+
+        onError?.(error);
+      }
+    },
+    [first, onError, onSuccess]
+  );
 
   const loadMore = useCallback(async (): Promise<void> => {
-    if (!state.hasNextPage || state.loading) {
+    if (state.loading || !state.hasNextPage) {
       return;
     }
 
-    const cursor = state.data?.recipes?.pageInfo?.endCursor;
-    if (cursor) {
-      await fetchRecipesList(first, cursor);
-    }
-  }, [state.hasNextPage, state.loading, state.data, fetchRecipesList, first]);
+    const nextPage = lastRequestRef.current.page + 1;
+    await fetchRecipesList({ ...lastRequestRef.current, page: nextPage });
+  }, [fetchRecipesList, state.hasNextPage, state.loading]);
 
   const refetch = useCallback(async (): Promise<void> => {
-    await fetchRecipesList(currentParamsRef.current.first, currentParamsRef.current.after);
+    await fetchRecipesList({ ...lastRequestRef.current });
   }, [fetchRecipesList]);
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
-  // Auto-fetch on mount
   useEffect(() => {
     if (autoFetch) {
       fetchRecipesList();

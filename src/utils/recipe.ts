@@ -120,6 +120,7 @@ export interface RecipeServiceError {
   message: string;
   originalError?: Error;
   timestamp: number;
+  context?: Record<string, unknown>;
 }
 
 // Pagination types

@@ -173,8 +173,8 @@ body {
 }
 
 .hero {
-  background-image: url("/public/images/home/Hero.svg");
-  background-size: cover; /* or contain, 100% */
+  background-image: url("/images/Hero.svg");
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }

@@ -205,20 +205,18 @@ function CarouselNext({
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (
-    <>
-      <button
-        data-slot="carousel-next"
-        typeof="button"
-        className={cn("absolute rounded-full", "-top-20 right-0", className)}
-        aria-disabled={!canScrollNext}
-        onClick={scrollNext}
-        {...props}
-      >
-        <Icon name="ArrowRight" size={40} aria-label="Temps de préparation" />
+    <button
+      data-slot="carousel-next"
+      type="button"
+      className={cn("absolute rounded-full", "-top-20 right-0", className)}
+      aria-disabled={!canScrollNext}
+      onClick={scrollNext}
+      {...props}
+    >
+      <Icon name="ArrowRight" size={40} aria-label="Temps de préparation" />
 
-        <span className="sr-only">Next slide</span>
-      </button>
-    </>
+      <span className="sr-only">Next slide</span>
+    </button>
   );
 }
 

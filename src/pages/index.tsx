@@ -9,8 +9,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { Icon } from "@/components/ui/icon";
-import { Input } from "@/components/ui/input";
 
 const explore = [
   {
@@ -34,6 +32,35 @@ const explore = [
     label: "quick bite!",
   },
 ];
+
+const demoRecipeCard = {
+  title: "Savory Herb-Infused Chicken",
+  description:
+    "Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken",
+  href: "/recipes/savory-herb-infused-chicken",
+  featuredImageUrl: "/images/recipeImage1.svg",
+  dietary: [
+    "dairy-free",
+    "gluten free",
+    "egg free",
+    "grain free",
+    "no bake",
+    "high-protein",
+  ],
+  totalTime: 45,
+  difficulty: "medium",
+  servings: 4,
+};
+
+const featuredRecipes = Array.from({ length: 5 }, (_, index) => ({
+  id: `featured-${index}`,
+  ...demoRecipeCard,
+}));
+
+const gridRecipes = Array.from({ length: 6 }, (_, index) => ({
+  id: `grid-${index}`,
+  ...demoRecipeCard,
+}));
 
 export default function Home() {
   return (
@@ -93,11 +120,14 @@ export default function Home() {
           <Button variant="outline">SEE MORE</Button>
         </div>
         <div className="mt-16 lg:mt-4 lg:flex-1">
-          {explore.map((item, key) => (
-            <div className="tem flex justify-between items-center border-b-2 border-(--dark)/10 py-4 mb-4">
-              <img src={item?.icon} alt="image" />
+          {explore.map(item => (
+            <div
+              key={item.label}
+              className="tem flex justify-between items-center border-b-2 border-(--dark)/10 py-4 mb-4"
+            >
+              <img src={item.icon} alt="image" />
               <span className="uppercase text-(--dark) text-base font-semibold">
-                {item?.label}
+                {item.label}
               </span>
             </div>
           ))}
@@ -110,25 +140,10 @@ export default function Home() {
 
         <Carousel className="w-full hidden md:block md:max-w-full">
           <CarouselContent className=" ">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <CarouselItem
-                key={index}
-                className="pl-3  basis-full lg:basis-1/2"
-              >
+            {featuredRecipes.map(recipe => (
+              <CarouselItem key={recipe.id} className="pl-3  basis-full lg:basis-1/2">
                 <div className="">
-                  <RecipeCard
-                    image="/images/recipeImage1.svg"
-                    title="Savory Herb-Infused Chicken"
-                    description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
-                    diet={[
-                      "dairy-free",
-                      "gluten free",
-                      "egg free",
-                      "grain free",
-                      "no bake",
-                      "high-protein",
-                    ]}
-                  />
+                  <RecipeCard {...recipe} />
                 </div>
               </CarouselItem>
             ))}
@@ -140,21 +155,9 @@ export default function Home() {
         {/* Mobile: Scroll horizontal natif */}
         <div className="md:hidden w-full">
           <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-2 px-2">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="flex-none max-w-xs sm:w-[320px]">
-                <RecipeCard
-                  image="/images/recipeImage1.svg"
-                  title="Savory Herb-Infused Chicken"
-                  description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
-                  diet={[
-                    "dairy-free",
-                    "gluten free",
-                    "egg free",
-                    "grain free",
-                    "no bake",
-                    "high-protein",
-                  ]}
-                />
+            {featuredRecipes.map(recipe => (
+              <div key={`mobile-${recipe.id}`} className="flex-none max-w-xs sm:w-[320px]">
+                <RecipeCard {...recipe} />
               </div>
             ))}
           </div>
@@ -182,20 +185,8 @@ export default function Home() {
           <Button variant="outline">VIEW ALL RECIPES</Button>
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 my-10">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <RecipeCard
-              image="/images/recipeImage1.svg"
-              title="Savory Herb-Infused Chicken"
-              description="Indulge in the rich and savory symphony of flavors with our Savory Herb-Infused Chicken"
-              diet={[
-                "dairy-free",
-                "gluten free",
-                "egg free",
-                "grain free",
-                "no bake",
-                "high-protein",
-              ]}
-            />
+          {gridRecipes.map(recipe => (
+            <RecipeCard key={recipe.id} {...recipe} />
           ))}
         </div>
         <div className="text-center">

@@ -12,6 +12,12 @@ interface IconProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 
+const sanitizeSvgMarkup = (markup: string): string =>
+  markup
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+="[^"]*"/gi, '')
+    .replace(/\son\w+='[^']*'/gi, '');
+
 export function Icon({ 
   name, 
   size = 24, 
@@ -47,7 +53,7 @@ export function Icon({
         .replace(/stroke-width="[^"]*"/g, `stroke-width="${strokeWidth}"`);
     }
     
-    return modifiedContent;
+    return sanitizeSvgMarkup(modifiedContent);
   }, [svg, color, size, strokeWidth]);
 
   // Maintenant les conditions après tous les hooks
