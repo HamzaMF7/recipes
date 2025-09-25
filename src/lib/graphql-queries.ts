@@ -13,6 +13,7 @@ export interface GetRecipeBySlugVariables {
 export interface RecipeCardNode {
   id: string;
   title: string;
+  slug: string ;
   totalTime?: number | null;
   difficulty?: string | null; // e.g. "easy" | "medium" | "hard"
   dietary?: string[] | null;
@@ -182,6 +183,7 @@ export const GET_RECIPES_LIST = gql`
       nodes {
         id
         title
+        slug
         summary
         totalTime
         difficulty
@@ -209,6 +211,7 @@ export const GET_FILTERED_RECIPES = gql`
       nodes {
         id
         title
+        slug
         totalTime
         difficulty
         dietary

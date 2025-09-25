@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import RecipeCard from "@/components/ui/recipeCard";
-import Image from "next/image";
+import type { GetStaticProps } from "next";
+
+import type { RecipeCardNode } from "@/lib/graphql-queries";
+import { recipeService } from "@/lib/recipe-service";
 
 import {
   Carousel,
@@ -9,6 +12,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import Link from "next/link";
 
 const explore = [
   {
@@ -57,12 +61,14 @@ const featuredRecipes = Array.from({ length: 5 }, (_, index) => ({
   ...demoRecipeCard,
 }));
 
-const gridRecipes = Array.from({ length: 6 }, (_, index) => ({
-  id: `grid-${index}`,
-  ...demoRecipeCard,
-}));
+const EXPLORE_RECIPES_PER_PAGE = 6;
 
-export default function Home() {
+type HomeProps = {
+  exploreRecipes: RecipeCardNode[];
+  errorMessage?: string | null;
+};
+
+export default function Home({ exploreRecipes, errorMessage }: HomeProps) {
   return (
     <div className="grid gap-5">
       {/* Hero section  */}
@@ -93,7 +99,8 @@ export default function Home() {
             variant="secondary"
             className="my-6 uppercase text-md lg:text-base font-medium lg:px-8"
           >
-            explore recipes
+            <Link href={`/allrecipes`}>explore recipes</Link>
+            
           </Button>
         </div>
       </div>
@@ -117,7 +124,9 @@ export default function Home() {
             or on the lookout for irresistible desserts, our curated selection
             has something to satisfy every palate.
           </p>
-          <Button variant="outline">SEE MORE</Button>
+          <Button variant="outline">
+            <Link href={`/allrecipes`}>SEE MORE</Link>
+          </Button>
         </div>
         <div className="mt-16 lg:mt-4 lg:flex-1">
           {explore.map(item => (
@@ -182,15 +191,33 @@ export default function Home() {
             With our diverse collection of recipes we have something to satisfy
             every palate.
           </p>
-          <Button variant="outline">VIEW ALL RECIPES</Button>
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 my-10">
-          {gridRecipes.map(recipe => (
-            <RecipeCard key={recipe.id} {...recipe} />
-          ))}
+          {exploreRecipes.length > 0 ? (
+            exploreRecipes.map(recipe => (
+              <RecipeCard
+                key={recipe.id}
+                id={recipe.id}
+                title={recipe.title}
+                slug={recipe.slug}
+                description={recipe.summary}
+                href={`/recipe/${recipe.slug}`}
+                featuredImageUrl={recipe.featuredImageUrl}
+                dietary={recipe.dietary ?? []}
+                totalTime={recipe.totalTime}
+                difficulty={recipe.difficulty}
+              />
+            ))
+          ) : (
+            <div className="col-span-full text-center text-sm text-(--dark)/70">
+              {errorMessage ?? "No recipes available just yet."}
+            </div>
+          )}
         </div>
-        <div className="text-center">
-          <Button variant="outline">VIEW ALL RECIPES</Button>
+        <div className="text-center lg:mb-5 ">
+          <Button  variant="outline">
+            <Link href={`/allrecipes`}>VIEW ALL RECIPES</Link>
+          </Button>
         </div>
       </div>
 
@@ -270,3 +297,46 @@ export default function Home() {
     </div>
   );
 }
+
+export const getStaticProps: GetStaticProps<HomeProps> = async () => {
+  try {
+    const result = await recipeService.fetchRecipesList({
+      page: 1,
+      perPage: EXPLORE_RECIPES_PER_PAGE,
+      fetchPolicy: "network-only",
+      retries: 1,
+    });
+
+    if (result.error) {
+      console.error("Failed to load recipes for home page", result.error);
+
+      return {
+        props: {
+          exploreRecipes: [],
+          errorMessage: "Unable to load recipes right now. Please try again soon.",
+        },
+        revalidate: 300,
+      };
+    }
+
+    const nodes = result.data?.filteredRecipes?.nodes ?? [];
+
+    return {
+      props: {
+        exploreRecipes: nodes,
+        errorMessage: null,
+      },
+      revalidate: 300,
+    };
+  } catch (error) {
+    console.error("Unexpected error during home getStaticProps", error);
+
+    return {
+      props: {
+        exploreRecipes: [],
+        errorMessage: "Unable to load recipes right now. Please try again soon.",
+      },
+      revalidate: 300,
+    };
+  }
+};

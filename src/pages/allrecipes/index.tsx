@@ -9,13 +9,13 @@ import RecipeCard from '@/components/ui/recipeCard';
 type Recipe = {
   id: string;
   title: string;
+  slug: string;
   summary: string;
   featuredImageUrl?: string;
   featuredImageId?: string;
   dietary: string[];
   totalTime?: number;
   difficulty?: string;
-  slug?: string;
 };
 
 type FacetItem = {
@@ -186,7 +186,7 @@ const FacetedDropdown = ({
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && !loading && (
+      {isOpen && !loading && (  
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute z-20 mt-1 w-full rounded-lg border border-(--dark)/20 bg-(--light) shadow-lg">
@@ -254,6 +254,8 @@ export default function OptimizedRecipeFilters() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(); // <-- works in browser & node
+
+  console.log("path name " , router) ;
 
   // Single query fetches both recipes and updated facets
   const fetchRecipesWithFacets = useCallback(
@@ -652,6 +654,7 @@ export default function OptimizedRecipeFilters() {
                     key={r.id}
                     id={r.id}
                     title={r.title}
+                    slug={r.slug}
                     description={r.summary ?? ''}
                     href={`/recipes/${r.slug ?? r.id}`}          // prefer slug if present
                     featuredImageUrl={r.featuredImageUrl ?? undefined}
@@ -731,7 +734,7 @@ export default function OptimizedRecipeFilters() {
           <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-4 shadow-lg flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-              <span className="text-sm font-medium">Updating recipes...</span>
+              <span className="text-sm font-medium">Updating recipes...</span> 
             </div>
           </div>
         )}

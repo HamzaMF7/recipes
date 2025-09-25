@@ -4,10 +4,12 @@ import Link from "next/link";
 import { getDeterministicTagColor, getTagInitials, getTagTextColorClass } from "@/utils/tagHelpers";
 
 import { Button } from "./button";
+import { useRouter } from "next/router";
 
 export interface RecipeCardProps {
   id: string;
   title: string;
+  slug : string ;
   description?: string | null;
   href: string;                     // e.g. node.uri or `/recipes/${slug}`
   featuredImageUrl?: string | null; // from GraphQL
@@ -21,6 +23,7 @@ export interface RecipeCardProps {
 export default function RecipeCard({
   id,
   title,
+  slug , 
   description,
   href,
   featuredImageUrl,
@@ -30,6 +33,7 @@ export default function RecipeCard({
   servings,
   className,
 }: RecipeCardProps) {
+
 
   const fmtTime = (m?: number | null) =>
     typeof m === "number" && m > 0 ? `${m} min` : null;
@@ -88,7 +92,7 @@ export default function RecipeCard({
                   title={tag.replace(/-/g, " ")}
                 >
                   {initials}
-                </span>
+                </span> 
               );
             })}
           </div>
@@ -96,8 +100,8 @@ export default function RecipeCard({
 
         <div className="flex flex-col lg:items-center gap-4 lg:justify-between lg:flex-row mt-10 lg:mt-13">
           <span className="text-sm text-(--dark)">{metaBits}</span>
-          <Button variant="outline" className="uppercase font-medium" asChild>
-            <Link href={href}>view recipe</Link>
+          <Button variant="outline" className="uppercase font-medium"   asChild>                                                        
+                  <Link href={`/recipe/${slug}`}>View recipe</Link>
           </Button>
         </div>
       </div>

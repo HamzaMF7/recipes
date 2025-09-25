@@ -6,6 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
+
+
+
 export interface MenuType {
   title: string;
   path: string;
@@ -18,7 +21,7 @@ export const menu: MenuType[] = [
   },
   {
     title: "All Recipes",
-    path: "/recipes",
+    path: "/allrecipes",
   },
   {
     title: "vegan",

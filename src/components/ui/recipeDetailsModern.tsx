@@ -190,7 +190,7 @@ export default function RecipeDetailsModern({
     }
 
     return (
-      <section className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6" aria-labelledby="nutrition-heading">
+      <section className="bg-(--light) rounded-3xl shadow-xl border border-gray-100 p-6" aria-labelledby="nutrition-heading">
         <h2 id="nutrition-heading" className="text-xl md:text-2xl font-bold mb-4">Nutrition</h2>
         <p className="sr-only">Nutrition facts including calories, macros, and vitamins per serving.</p>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -214,7 +214,7 @@ export default function RecipeDetailsModern({
       >
         <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-stretch">
           {/* Info Card */}
-          <div className="order-2 md:order-1 bg-white/95 rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8 motion-safe:transition-transform motion-safe:duration-300 hover:md:-translate-y-0.5">
+          <div className="order-2 md:order-1 bg-(--light)/95 rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8 motion-safe:transition-transform motion-safe:duration-300 hover:md:-translate-y-0.5">
               {/* circle-initial diet/method/type badges (like RecipeCard) */}
               {tags.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 mb-3" aria-label="Recipe tags">
@@ -282,7 +282,7 @@ export default function RecipeDetailsModern({
                 { k: recipeData?.servingsUnit || 'Servings', v: recipeData?.servings ?? '—', color: 'var(--primary3)' },
                 { k: 'Difficulty', v: recipeData?.difficulty || '—', color: 'var(--primary4)' },
               ].map((c) => (
-                <div key={c.k} className="rounded-2xl border border-gray-100 bg-white p-4">
+                <div key={c.k} className="rounded-2xl border border-gray-100 bg-(--light) p-4">
                   <div className="text-xs uppercase tracking-wide text-gray-500">{c.k}</div>
                   <div className="text-xl font-semibold" style={{ color: c.color }}>{c.v}</div>
                 </div>
@@ -332,7 +332,7 @@ export default function RecipeDetailsModern({
                       {stepNo}
                     </span>
 
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 md:p-6 motion-safe:transition-shadow motion-safe:duration-200 group-hover:shadow-xl">
+                    <div className="bg-(--light) rounded-2xl shadow-lg border border-gray-100 p-5 md:p-6 motion-safe:transition-shadow motion-safe:duration-200 group-hover:shadow-xl">
                       <p className="text-gray-800 leading-relaxed">{step.instruction}</p>
                       {step.image ? (
                         <div className="relative mt-4 h-52 md:h-110 rounded-xl overflow-hidden">
@@ -367,7 +367,7 @@ export default function RecipeDetailsModern({
             {recipeData?.tips && (
               <section className="mt-10">
                 <h3 className="text-2xl font-bold mb-3">Chef’s Tips</h3>
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <div className="bg-(--light) rounded-2xl shadow-lg border border-gray-100 p-6">
                   {Array.isArray(recipeData.tips) ? (
                     <ul className="list-disc pl-5 space-y-2 text-gray-800">
                       {recipeData.tips.map((t: string, i: number) => <li key={i}>{t}</li>)}
@@ -382,7 +382,7 @@ export default function RecipeDetailsModern({
             {recipeData?.variations && (
               <section className="mt-8">
                 <h3 className="text-2xl font-bold mb-3">Variations</h3>
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <div className="bg-(--light) rounded-2xl shadow-lg border border-gray-100 p-6">
                   {Array.isArray(recipeData.variations) ? (
                     <ul className="list-disc pl-5 space-y-2 text-gray-800">
                       {recipeData.variations.map((v: string, i: number) => <li key={i}>{v}</li>)}
@@ -423,13 +423,13 @@ export default function RecipeDetailsModern({
           <aside className="mt-12">
             <div className="lg:sticky lg:top-24 space-y-6">
               {/* Ingredients Card */}
-              <section className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
+              <section className="bg-(--light) rounded-3xl shadow-xl border border-gray-100 p-6">
                 <div className="flex items-center justify-between gap-4 mb-3">
                   <h2 id="ingredients" className="text-xl md:text-2xl font-bold">Ingredients</h2>
                   <div className="flex items-center gap-2" aria-label="Adjust servings">
-                    <button className="btn btn-secondary" onClick={() => setServings(s => Math.max(1, s - 1))} aria-label="Decrease servings">−</button>
+                    <button className="btn bg-(--primary4)" onClick={() => setServings(s => Math.max(1, s - 1))} aria-label="Decrease servings">−</button>
                     <div className="min-w-[3rem] text-center font-medium" aria-live="polite">{servings}</div>
-                    <button className="btn btn-secondary" onClick={() => setServings(s => Math.min(24, s + 1))} aria-label="Increase servings">+</button>
+                    <button className="btn bg-(--primary4)" onClick={() => setServings(s => Math.min(24, s + 1))} aria-label="Increase servings">+</button>
                     {servings !== baseServings && (
                       <button className="btn btn-primary ml-2" onClick={() => setServings(baseServings)} aria-label="Reset servings">Reset</button>
                     )}
@@ -470,7 +470,7 @@ export default function RecipeDetailsModern({
 
               {/* Equipment */}
               {!!equipmentItems.length && (
-                <section className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
+                <section className="bg-(--light) rounded-3xl shadow-xl border border-gray-100 p-6">
                   <h2 id="equipment" className="text-xl md:text-2xl font-bold mb-3">Equipment</h2>
                   <ul className="grid gap-2">
                     {equipmentItems.map((item, i) => (
